@@ -1,0 +1,304 @@
+.workout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.workout-header__timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.workout-header__elapsed {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
+/* Rest bar */
+.rest-bar {
+  background: var(--surface);
+  padding: 10px 16px 8px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.rest-bar__inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.rest-bar__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.rest-bar__time {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--info);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+.rest-bar__tap {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-left: auto;
+}
+.rest-bar__track {
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.rest-bar__fill {
+  height: 100%;
+  background: var(--info);
+  border-radius: var(--radius-full);
+  transition: width 1s linear;
+}
+
+/* Workout type classifier */
+.workout-type-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Content */
+.workout-content {
+  padding-top: 12px;
+}
+
+/* Template banner */
+.template-banner {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.template-banner__name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.template-banner__notes {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Exercise card */
+.exercise-card {
+  margin-bottom: 14px;
+}
+.exercise-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.exercise-card__name {
+  font-size: 17px;
+  font-weight: 700;
+}
+.exercise-card__category {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Video link */
+.exercise-card__video-btn {
+  text-decoration: none;
+}
+
+/* Set header */
+.set-header {
+  display: grid;
+  grid-template-columns: 22px 54px 1fr 1fr 34px;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 4px;
+}
+.set-header--iso {
+  grid-template-columns: 22px 54px 1fr 34px;
+}
+.set-header span { text-align: center; }
+
+/* Completed set */
+.set-row--done {
+  opacity: 0.65;
+}
+.set-row--done .set-row__num {
+  color: var(--accent);
+}
+
+/* Exercise card footer (add set + extra left) */
+.exercise-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Speed/Strength mode bar */
+.exercise-card__mode-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+/* Extra left set button */
+.exercise-card__extra-left {
+  font-size: 12px;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-full);
+  padding: 5px 10px;
+}
+.exercise-card__extra-left--active {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+/* Extra left set row highlight */
+.set-row--extra-left {
+  border-left: 2px solid var(--accent);
+  padding-left: 4px;
+  margin-left: -6px;
+}
+.set-row__num--left {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+/* Add set button */
+.add-set-btn {
+  color: var(--accent);
+}
+
+/* Add exercise button */
+.add-exercise-btn {
+  margin-top: 8px;
+  margin-bottom: 32px;
+  border: 1.5px dashed var(--border);
+}
+
+/* Skip button in exercise card header */
+.exercise-card__skip-btn {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+}
+
+/* Skipped exercise card */
+.exercise-card--skipped {
+  opacity: 0.6;
+}
+.exercise-card__skip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.exercise-card__skip-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--surface-3);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Superset block */
+.superset-block {
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding-left: 10px;
+  margin-bottom: 8px;
+}
+.superset-block > .exercise-card {
+  margin-bottom: 8px;
+}
+.superset-block__label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+/* Picker */
+.picker-sheet {
+  max-height: 85vh;
+}
+.picker-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.category-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: none;
+}
+.exercise-list {
+  overflow-y: auto;
+  max-height: 280px;
+  margin-bottom: 4px;
+}
+.exercise-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 4px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 15px;
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.exercise-list__item:active {
+  background: var(--surface-2);
+}
+.custom-form {
+  padding-top: 4px;
+}
+.custom-form__iso-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}

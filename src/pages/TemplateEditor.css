@@ -1,0 +1,336 @@
+/* Header */
+.template-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.template-editor-header__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Content */
+.template-editor-content {
+  padding-top: 20px;
+}
+
+/* Name input */
+.template-editor__name-input {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 2px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 24px;
+  font-weight: 800;
+  padding: 0 0 10px;
+  margin-bottom: 16px;
+  outline: none;
+  letter-spacing: -0.3px;
+  transition: border-color var(--transition);
+}
+.template-editor__name-input:focus {
+  border-bottom-color: var(--accent);
+}
+.template-editor__name-input::placeholder {
+  color: var(--text-tertiary);
+}
+.template-editor__name-input--error {
+  border-bottom-color: var(--danger);
+}
+
+.template-editor__error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: -12px;
+  margin-bottom: 12px;
+}
+
+/* Notes textarea */
+.template-editor__notes-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  padding: 12px 14px;
+  margin-bottom: 24px;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+  transition: border-color var(--transition);
+}
+.template-editor__notes-input:focus {
+  border-color: var(--accent);
+}
+.template-editor__notes-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Type selector */
+.template-editor__type-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+/* Section label */
+.template-editor__section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.template-editor__section-count {
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+}
+
+.template-editor__empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 20px 0;
+  margin-bottom: 8px;
+}
+
+/* Format hint */
+.template-editor__format-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: -16px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+/* Drag wrapper */
+.drag-wrapper {
+  position: relative;
+  touch-action: none;
+}
+.drag-wrapper--dragging {
+  opacity: 0.45;
+}
+.drag-wrapper--over > .template-exercise-card {
+  border-top: 2px solid var(--accent);
+}
+
+/* Superset connector between paired exercises */
+.superset-connector {
+  height: 10px;
+  position: relative;
+  margin: -4px 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.superset-connector::before {
+  content: '';
+  position: absolute;
+  left: 26px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.5;
+  border-radius: 1px;
+}
+
+/* Drag handle */
+.drag-handle {
+  flex-shrink: 0;
+  width: 28px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  margin-right: 4px;
+  touch-action: none;
+  color: var(--text-tertiary);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Group badge */
+.template-group-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 800;
+  font-family: var(--font);
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+.template-group-badge--active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Exercise card */
+.template-exercise-card {
+  margin-bottom: 12px;
+}
+.template-exercise-card__header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 0;
+}
+.template-exercise-card__name {
+  font-size: 16px;
+  font-weight: 700;
+}
+.template-exercise-card__category {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.template-exercise-card__fields {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.template-exercise-card__field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.template-exercise-card__field label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+.template-exercise-card__field .input {
+  padding: 8px 10px;
+  font-size: 15px;
+  text-align: center;
+}
+
+/* Extra left set toggle */
+.template-exercise-card__extra-left {
+  font-size: 12px;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-full);
+  padding: 5px 10px;
+  margin-bottom: 10px;
+  width: 100%;
+  justify-content: flex-start;
+}
+.template-exercise-card__extra-left--active {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+/* Video URL */
+.template-exercise-card__video {
+  margin-top: 4px;
+}
+.template-exercise-card__video-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.template-exercise-card__video-remove {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--danger);
+  padding: 2px 6px;
+}
+.template-exercise-card__video .input {
+  font-size: 13px;
+}
+
+.template-exercise-card__add-video {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  gap: 5px;
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+.template-exercise-card__add-video:active {
+  color: var(--text);
+}
+
+/* Reuse picker styles from ActiveWorkout */
+.picker-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.category-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: none;
+}
+.exercise-list {
+  overflow-y: auto;
+  max-height: 280px;
+  margin-bottom: 4px;
+}
+.exercise-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 4px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 15px;
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.exercise-list__item:active {
+  background: var(--surface-2);
+}
+
+/* Add exercise button */
+.add-exercise-btn {
+  margin-top: 4px;
+  margin-bottom: 32px;
+  border: 1.5px dashed var(--border);
+}

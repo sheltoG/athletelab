@@ -1,0 +1,361 @@
+.plan-title {
+  margin-bottom: 16px;
+  text-align: center;
+  padding-top: 4px;
+}
+
+.plan-tabs {
+  display: flex;
+  background: var(--surface);
+  border-radius: var(--radius-full);
+  padding: 4px;
+  margin-bottom: 16px;
+}
+.plan-tab {
+  flex: 1;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: var(--font);
+}
+.plan-tab--active {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* Template card */
+.template-card {
+  margin-bottom: 10px;
+}
+.template-card__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.template-card__name {
+  font-size: 16px;
+  font-weight: 700;
+}
+.template-card__meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.template-card__type-badge {
+  text-transform: capitalize;
+}
+.template-card__actions {
+  display: flex;
+  gap: 4px;
+}
+.template-exercises {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.template-ex-chip {
+  font-size: 12px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+}
+
+/* Cycle card */
+.cycle-card {
+  margin-bottom: 10px;
+}
+.cycle-card__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.cycle-card__name {
+  font-size: 16px;
+  font-weight: 700;
+}
+.cycle-card__dates {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.cycle-card__template-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+  margin-top: 6px;
+}
+.cycle-week-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.cycle-week {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  border: 1.5px solid var(--border);
+}
+.cycle-week--done {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+  opacity: 0.6;
+}
+.cycle-week--current {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+
+/* Cycle goals (display) */
+.cycle-goals {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cycle-goal-item--display {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.cycle-goal-item__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cycle-goal-name {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cycle-goal-item__weights {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.cycle-goal-item__current {
+  font-weight: 800;
+  color: var(--accent);
+}
+.cycle-goal-item__start {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.cycle-goal-item__sep {
+  color: var(--text-tertiary);
+  margin: 0 2px;
+}
+.cycle-goal-item__target {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.cycle-goal-item__reps {
+  color: var(--text-tertiary);
+}
+.cycle-goal-bar {
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.cycle-goal-bar__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+  min-width: 3px;
+}
+
+/* Template form */
+.template-ex-row {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.template-ex-row__name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.template-ex-row__inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.template-ex-row__field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.template-ex-row__field label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dropdown */
+.exercise-dropdown {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+}
+.exercise-dropdown__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.exercise-dropdown__item:last-child { border-bottom: none; }
+.exercise-dropdown__item:active { background: var(--surface-3); }
+
+/* Cycle form sheet */
+.cycle-form-sheet {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.cycle-form__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.cycle-form__template-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+.cycle-form__template-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.cycle-form__goals-section {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.cycle-form__goals-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.cycle-form__section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+.cycle-form__goals-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.cycle-form__add-goal-btn {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Exercise goal input rows in cycle form */
+.cycle-goal-input-row {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.cycle-goal-input-row__header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.cycle-goal-input-row__name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cycle-goal-input-row__fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.cycle-goal-input-row__field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cycle-goal-input-row__field label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+.cycle-goal-input-row__field .input {
+  padding: 8px 8px;
+  font-size: 14px;
+  text-align: center;
+}
+.cycle-goal-input-row__field--reps {
+  max-width: 64px;
+}
+.cycle-goal-input-row__arrow {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  padding-bottom: 10px;
+  flex-shrink: 0;
+}
