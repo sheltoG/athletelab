@@ -282,3 +282,44 @@ export async function getSetting(key) {
 export async function setSetting(key, value) {
   await db.settings.put({ key, value });
 }
+
+export async function exportData() {
+  const payload = {
+    version: 1,
+    exportedAt: Date.now(),
+    exercises:        await db.exercises.toArray(),
+    workoutTemplates: await db.workoutTemplates.toArray(),
+    trainingCycles:   await db.trainingCycles.toArray(),
+    workoutSessions:  await db.workoutSessions.toArray(),
+    personalRecords:  await db.personalRecords.toArray(),
+    settings:         await db.settings.toArray(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `athletelab-backup-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export async function importData(file) {
+  const text = await file.text();
+  const payload = JSON.parse(text);
+
+  await db.exercises.clear();
+  await db.workoutTemplates.clear();
+  await db.trainingCycles.clear();
+  await db.workoutSessions.clear();
+  await db.personalRecords.clear();
+  await db.settings.clear();
+
+  if (payload.exercises?.length)        await db.exercises.bulkPut(payload.exercises);
+  if (payload.workoutTemplates?.length)  await db.workoutTemplates.bulkPut(payload.workoutTemplates);
+  if (payload.trainingCycles?.length)    await db.trainingCycles.bulkPut(payload.trainingCycles);
+  if (payload.workoutSessions?.length)   await db.workoutSessions.bulkPut(payload.workoutSessions);
+  if (payload.personalRecords?.length)   await db.personalRecords.bulkPut(payload.personalRecords);
+  if (payload.settings?.length)          await db.settings.bulkPut(payload.settings);
+}

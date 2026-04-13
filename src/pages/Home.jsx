@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db, getSetting, setSetting } from '../db';
+import { db, getSetting, setSetting, exportData, importData } from '../db';
 import './Home.css';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -268,10 +268,31 @@ function GoalPicker({ value, onChange }) {
 function SettingsSheet({ templates, trackedTemplates, onSave, onClose }) {
   const [restSec, setRestSec] = useState(30);
   const [newTracked, setNewTracked] = useState({ ...trackedTemplates });
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     getSetting('defaultRestTimerSeconds').then(v => { if (v != null) setRestSec(v); });
   }, []);
+
+  const handleImportPick = (e) => {
+    const file = e.target.files?.[0];
+    if (file) setImportFile(file);
+    e.target.value = '';
+  };
+
+  const confirmImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    try {
+      await importData(importFile);
+      window.location.reload();
+    } catch (err) {
+      alert('Import failed. Make sure the file is a valid AthleteLab backup.');
+      setImporting(false);
+      setImportFile(null);
+    }
+  };
 
   const toggleTemplate = (id) => {
     const key = String(id);
@@ -349,7 +370,51 @@ function SettingsSheet({ templates, trackedTemplates, onSave, onClose }) {
         >
           Save Settings
         </button>
-        <button className="btn btn--ghost btn--full" onClick={onClose}>Cancel</button>
+        <button className="btn btn--ghost btn--full" onClick={onClose} style={{ marginBottom: 24 }}>Cancel</button>
+
+        {/* Data section */}
+        <div className="settings-divider" />
+        <label style={{ fontSize: 13, fontWeight: 700, display: 'block', marginBottom: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Data
+        </label>
+        <button
+          className="btn btn--secondary btn--full"
+          style={{ marginBottom: 10 }}
+          onClick={exportData}
+        >
+          Export Backup
+        </button>
+        <label className="btn btn--secondary btn--full" style={{ textAlign: 'center', cursor: 'pointer' }}>
+          Import Backup
+          <input
+            type="file"
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={handleImportPick}
+          />
+        </label>
+
+        {/* Import confirmation */}
+        {importFile && (
+          <div className="settings-import-confirm">
+            <p className="settings-import-confirm__text">
+              Import <strong>{importFile.name}</strong>? This will overwrite all current data.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn--danger"
+                style={{ flex: 1 }}
+                onClick={confirmImport}
+                disabled={importing}
+              >
+                {importing ? 'Importing…' : 'Yes, overwrite'}
+              </button>
+              <button className="btn btn--ghost" style={{ flex: 1 }} onClick={() => setImportFile(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
