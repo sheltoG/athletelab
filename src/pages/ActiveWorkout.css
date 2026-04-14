@@ -128,7 +128,7 @@
 /* Set header */
 .set-header {
   display: grid;
-  grid-template-columns: 22px 54px 1fr 1fr 34px;
+  grid-template-columns: 22px 54px 1fr 1fr 34px 26px;
   gap: 6px;
   font-size: 10px;
   font-weight: 700;
@@ -137,10 +137,33 @@
   letter-spacing: 0.5px;
   padding-bottom: 4px;
 }
-.set-header--iso {
-  grid-template-columns: 22px 54px 1fr 34px;
+.set-header--no-weight {
+  grid-template-columns: 22px 54px 1fr 34px 26px;
 }
 .set-header span { text-align: center; }
+
+/* ISO hold countdown bar */
+.iso-countdown-bar {
+  height: 3px;
+  background: var(--surface-3);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin: -2px 0 4px;
+}
+.iso-countdown-bar__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+}
+
+/* Counting state on check button */
+.set-row__check--counting {
+  background: var(--accent);
+  border-color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  color: #000;
+}
 
 /* Completed set */
 .set-row--done {

@@ -3,10 +3,24 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db, getSetting } from '../db';
 import './ActiveWorkout.css';
 
-// ─── Audio beep ────────────────────────────────────────────────────────────────
+// ─── Shared AudioContext for iOS compatibility ─────────────────────────────────
+let sharedAudioCtx = null;
+
+function ensureAudioCtx() {
+  if (!sharedAudioCtx) {
+    try {
+      const AudioCtx = window.AudioContext || window['webkitAudioContext'];
+    sharedAudioCtx = new AudioCtx();
+    } catch (_) {}
+  }
+  return sharedAudioCtx;
+}
+
 function playBeep() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = ensureAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
     [0, 0.15, 0.3].forEach((offset, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -18,7 +32,6 @@ function playBeep() {
       osc.start(ctx.currentTime + offset);
       osc.stop(ctx.currentTime + offset + 0.35);
     });
-    setTimeout(() => ctx.close(), 2000);
   } catch (_) {}
 }
 
@@ -29,7 +42,7 @@ function fmtTime(ms) {
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
   if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
-  return `${pad(m)}:${pad(s)}`;
+  return `${m}:${pad(s)}`;
 }
 function pad(n) { return String(n).padStart(2, '0'); }
 
@@ -38,6 +51,9 @@ function makeSet(extra = {}) {
 }
 
 function makeExerciseEntry(exercise) {
+  const sets = exercise.defaultExtraLeftSet
+    ? [makeSet(), makeSet({ isExtraLeft: true })]
+    : [makeSet()];
   return {
     id: crypto.randomUUID(),
     exerciseId: exercise.id,
@@ -48,10 +64,11 @@ function makeExerciseEntry(exercise) {
     hasSpeedStrengthMode: exercise.hasSpeedStrengthMode || false,
     speedStrengthMode: null,
     videoUrl: exercise.videoUrl || '',
-    extraLeftSet: false,
+    extraLeftSet: exercise.defaultExtraLeftSet || false,
+    tags: exercise.tags || [],
     supersetGroup: null,
     skipped: false,
-    sets: [makeSet()],
+    sets,
   };
 }
 
@@ -72,7 +89,6 @@ export default function ActiveWorkout() {
   const [elapsed, setElapsed] = useState(0);
   const [exercises, setExercises] = useState([]);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
-  const [restSeconds, setRestSeconds] = useState(30);
   const [restRemaining, setRestRemaining] = useState(null);
   const [restActive, setRestActive] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
@@ -83,22 +99,40 @@ export default function ActiveWorkout() {
   const [templateName, setTemplateName] = useState('');
   const [templateNotes, setTemplateNotes] = useState('');
 
+  // Unlock AudioContext on first user touch (iOS requirement)
+  useEffect(() => {
+    const unlock = () => {
+      const ctx = ensureAudioCtx();
+      if (ctx?.state === 'suspended') ctx.resume();
+    };
+    document.addEventListener('touchstart', unlock, { once: true });
+    return () => document.removeEventListener('touchstart', unlock);
+  }, []);
+
   // Load default rest timer and optional template
   useEffect(() => {
     getSetting('defaultRestTimerSeconds').then(v => {
-      if (v) { setDefaultRest(v); setRestSeconds(v); }
+      if (v) { setDefaultRest(v); }
     });
 
     const templateId = location.state?.templateId;
     if (templateId) {
-      db.workoutTemplates.get(templateId).then(template => {
+      db.workoutTemplates.get(templateId).then(async template => {
         if (!template) return;
         if (template.name) setTemplateName(template.name);
         if (template.notes) setTemplateNotes(template.notes);
         if (template.workoutType) setWorkoutType(template.workoutType);
         if (template.format) setWorkoutFormat(template.format);
         if (!template.exercises?.length) return;
+
+        // Look up full exercise data for tags and other properties
+        const exerciseIds = template.exercises.map(ex => ex.exerciseId);
+        const exercisesData = await db.exercises.bulkGet(exerciseIds);
+        const exerciseMap = {};
+        exercisesData.forEach(e => { if (e) exerciseMap[e.id] = e; });
+
         const entries = template.exercises.map(ex => {
+          const fullEx = exerciseMap[ex.exerciseId] || {};
           const baseSets = Array.from({ length: ex.defaultSets || 1 }, () => {
             const s = makeSet();
             if (ex.isIsometric) {
@@ -122,6 +156,7 @@ export default function ActiveWorkout() {
             speedStrengthMode: null,
             videoUrl: ex.videoUrl || '',
             extraLeftSet: ex.defaultExtraLeftSet || false,
+            tags: fullEx.tags || ex.tags || [],
             supersetGroup: ex.supersetGroup || null,
             skipped: false,
             sets: baseSets,
@@ -229,14 +264,25 @@ export default function ActiveWorkout() {
   };
 
   const updateSet = (entryId, setId, field, value) => {
-    setExercises(prev => prev.map(e =>
-      e.id === entryId
-        ? { ...e, sets: e.sets.map(s => s.id === setId ? { ...s, [field]: value } : s) }
-        : e
-    ));
+    setExercises(prev => prev.map(e => {
+      if (e.id !== entryId) return e;
+      const setIndex = e.sets.findIndex(s => s.id === setId);
+      // Propagate reps from first set to all subsequent incomplete non-extra sets
+      if (field === 'reps' && setIndex === 0) {
+        return {
+          ...e,
+          sets: e.sets.map((s, i) => {
+            if (s.id === setId) return { ...s, [field]: value };
+            if (i > 0 && !s.completed && !s.isExtraLeft) return { ...s, reps: value };
+            return s;
+          }),
+        };
+      }
+      return { ...e, sets: e.sets.map(s => s.id === setId ? { ...s, [field]: value } : s) };
+    }));
   };
 
-  const toggleSetComplete = (entryId, setId) => {
+  const toggleSetComplete = useCallback((entryId, setId) => {
     const currentEntry = exercises.find(e => e.id === entryId);
     const currentSet = currentEntry?.sets.find(s => s.id === setId);
     const isCompleting = currentSet && !currentSet.completed;
@@ -256,7 +302,7 @@ export default function ActiveWorkout() {
     });
 
     if (isCompleting && !timerStarted) startTimer();
-  };
+  }, [exercises, defaultRest, timerStarted, startRest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Finish workout ─────────────────────────────────────────────────────────
   const finishWorkout = async () => {
@@ -496,6 +542,8 @@ export default function ActiveWorkout() {
 // ─── Exercise card ──────────────────────────────────────────────────────────────
 function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleComplete, onRemoveExercise, onUpdateExercise, onToggleExtraLeft, onToggleSkip }) {
   const [prevSets, setPrevSets] = useState([]);
+  const [isoCountdowns, setIsoCountdowns] = useState({});
+  const isoTimerRefs = useRef({});
 
   useEffect(() => {
     db.workoutSessions
@@ -511,7 +559,50 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
       .catch(() => {});
   }, [entry.exerciseId]);
 
+  // ISO countdown ticks
+  useEffect(() => {
+    const active = Object.entries(isoCountdowns);
+    if (active.length === 0) return;
+    active.forEach(([setId, remaining]) => {
+      if (remaining <= 0) {
+        onToggleComplete(setId);
+        playBeep();
+        setIsoCountdowns(prev => { const n = { ...prev }; delete n[setId]; return n; });
+      } else {
+        isoTimerRefs.current[setId] = setTimeout(() => {
+          setIsoCountdowns(prev => {
+            if (prev[setId] === undefined) return prev;
+            return { ...prev, [setId]: prev[setId] - 1 };
+          });
+        }, 1000);
+      }
+    });
+    return () => {
+      active.forEach(([setId]) => clearTimeout(isoTimerRefs.current[setId]));
+    };
+  }, [isoCountdowns]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleIsoToggle = (set) => {
+    if (set.completed) {
+      onToggleComplete(set.id);
+      return;
+    }
+    const holdSecs = Number(set.holdTime);
+    if (!holdSecs || holdSecs <= 0) {
+      onToggleComplete(set.id);
+      return;
+    }
+    if (isoCountdowns[set.id] !== undefined) {
+      // Cancel the countdown
+      clearTimeout(isoTimerRefs.current[set.id]);
+      setIsoCountdowns(prev => { const n = { ...prev }; delete n[set.id]; return n; });
+      return;
+    }
+    setIsoCountdowns(prev => ({ ...prev, [set.id]: holdSecs }));
+  };
+
   const isIso = entry.isIsometric;
+  const isMobility = entry.tags?.includes('Mobility');
   const hasExtra = entry.sets.some(s => s.isExtraLeft);
 
   // Skipped state — collapsed view
@@ -586,11 +677,12 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
         </div>
       )}
 
-      <div className="set-header">
+      <div className={`set-header ${isMobility ? 'set-header--no-weight' : ''}`}>
         <span>Set</span>
         <span>Prev</span>
-        <span>lbs</span>
+        {!isMobility && <span>lbs</span>}
         <span>{isIso ? 'Secs' : 'Reps'}</span>
+        <span></span>
         <span></span>
       </div>
 
@@ -604,7 +696,11 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
             index={displayIndex}
             prev={prevSets[idx]}
             onUpdate={(field, val) => onUpdateSet(set.id, field, val)}
-            onToggle={() => onToggleComplete(set.id)}
+            onToggle={() => handleIsoToggle(set)}
+            onRemove={() => onRemoveSet(set.id)}
+            countdown={isoCountdowns[set.id]}
+            totalHold={Number(set.holdTime)}
+            isMobility={isMobility}
           />
         ) : (
           <SetRow
@@ -614,6 +710,8 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
             prev={prevSets[idx]}
             onUpdate={(field, val) => onUpdateSet(set.id, field, val)}
             onToggle={() => onToggleComplete(set.id)}
+            onRemove={() => onRemoveSet(set.id)}
+            isMobility={isMobility}
           />
         );
       })}
@@ -635,23 +733,27 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
   );
 }
 
-function SetRow({ set, index, prev, onUpdate, onToggle }) {
+function SetRow({ set, index, prev, onUpdate, onToggle, onRemove, isMobility }) {
   const prevLabel = prev
-    ? `${prev.weight || '–'} × ${prev.reps || '–'}`
+    ? isMobility
+      ? `${prev.reps || '–'} reps`
+      : `${prev.weight || '–'} × ${prev.reps || '–'}`
     : '–';
   return (
-    <div className={`set-row ${set.completed ? 'set-row--done' : ''} ${set.isExtraLeft ? 'set-row--extra-left' : ''}`}>
+    <div className={`set-row ${set.completed ? 'set-row--done' : ''} ${set.isExtraLeft ? 'set-row--extra-left' : ''} ${isMobility ? 'set-row--no-weight' : ''}`}>
       <span className={`set-row__num ${set.isExtraLeft ? 'set-row__num--left' : ''}`}>{index}</span>
       <span className="set-row__prev">{prevLabel}</span>
-      <input
-        className={`set-row__input ${set.completed ? 'set-row__input--done' : ''}`}
-        type="number"
-        inputMode="decimal"
-        placeholder="lbs"
-        value={set.weight}
-        onChange={e => onUpdate('weight', e.target.value)}
-        disabled={set.completed}
-      />
+      {!isMobility && (
+        <input
+          className={`set-row__input ${set.completed ? 'set-row__input--done' : ''}`}
+          type="number"
+          inputMode="decimal"
+          placeholder="lbs"
+          value={set.weight}
+          onChange={e => onUpdate('weight', e.target.value)}
+          disabled={set.completed}
+        />
+      )}
       <input
         className={`set-row__input ${set.completed ? 'set-row__input--done' : ''}`}
         type="number"
@@ -659,7 +761,6 @@ function SetRow({ set, index, prev, onUpdate, onToggle }) {
         placeholder="Reps"
         value={set.reps}
         onChange={e => onUpdate('reps', e.target.value)}
-        disabled={set.completed}
       />
       <button
         className={`set-row__check ${set.completed ? 'set-row__check--done' : ''}`}
@@ -671,47 +772,67 @@ function SetRow({ set, index, prev, onUpdate, onToggle }) {
           </svg>
         )}
       </button>
+      <button className="set-row__delete" onClick={onRemove}>×</button>
     </div>
   );
 }
 
-function IsometricSetRow({ set, index, prev, onUpdate, onToggle }) {
+function IsometricSetRow({ set, index, prev, onUpdate, onToggle, onRemove, countdown, totalHold, isMobility }) {
   const prevLabel = prev
-    ? `${prev.weight || '–'} × ${prev.holdTime ? `${prev.holdTime}s` : '–'}`
+    ? `${isMobility ? '' : (prev.weight ? prev.weight + ' × ' : '')}${prev.holdTime ? `${prev.holdTime}s` : '–'}`
     : '–';
+  const showCountdown = countdown !== undefined;
+  const countdownPct = showCountdown && totalHold > 0
+    ? ((totalHold - countdown) / totalHold) * 100
+    : 0;
+
   return (
-    <div className={`set-row ${set.completed ? 'set-row--done' : ''} ${set.isExtraLeft ? 'set-row--extra-left' : ''}`}>
-      <span className={`set-row__num ${set.isExtraLeft ? 'set-row__num--left' : ''}`}>{index}</span>
-      <span className="set-row__prev">{prevLabel}</span>
-      <input
-        className={`set-row__input ${set.completed ? 'set-row__input--done' : ''}`}
-        type="number"
-        inputMode="decimal"
-        placeholder="lbs"
-        value={set.weight}
-        onChange={e => onUpdate('weight', e.target.value)}
-        disabled={set.completed}
-      />
-      <input
-        className={`set-row__input ${set.completed ? 'set-row__input--done' : ''}`}
-        type="number"
-        inputMode="numeric"
-        placeholder="secs"
-        value={set.holdTime}
-        onChange={e => onUpdate('holdTime', e.target.value)}
-        disabled={set.completed}
-      />
-      <button
-        className={`set-row__check ${set.completed ? 'set-row__check--done' : ''}`}
-        onClick={onToggle}
-      >
-        {set.completed && (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
+    <>
+      <div className={`set-row ${set.completed ? 'set-row--done' : ''} ${set.isExtraLeft ? 'set-row--extra-left' : ''} ${isMobility ? 'set-row--no-weight' : ''}`}>
+        <span className={`set-row__num ${set.isExtraLeft ? 'set-row__num--left' : ''}`}>{index}</span>
+        <span className="set-row__prev">{prevLabel}</span>
+        {!isMobility && (
+          <input
+            className={`set-row__input ${set.completed ? 'set-row__input--done' : ''}`}
+            type="number"
+            inputMode="decimal"
+            placeholder="lbs"
+            value={set.weight}
+            onChange={e => onUpdate('weight', e.target.value)}
+            disabled={set.completed}
+          />
         )}
-      </button>
-    </div>
+        <input
+          className={`set-row__input ${set.completed ? 'set-row__input--done' : ''}`}
+          type="number"
+          inputMode="numeric"
+          placeholder="secs"
+          value={set.holdTime}
+          onChange={e => onUpdate('holdTime', e.target.value)}
+        />
+        <button
+          className={`set-row__check ${set.completed ? 'set-row__check--done' : ''} ${showCountdown ? 'set-row__check--counting' : ''}`}
+          onClick={onToggle}
+        >
+          {showCountdown ? (
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#000' }}>{countdown}</span>
+          ) : set.completed ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          ) : null}
+        </button>
+        <button className="set-row__delete" onClick={onRemove}>×</button>
+      </div>
+      {showCountdown && (
+        <div className="iso-countdown-bar">
+          <div
+            className="iso-countdown-bar__fill"
+            style={{ width: `${countdownPct}%`, transition: 'width 1s linear' }}
+          />
+        </div>
+      )}
+    </>
   );
 }
 

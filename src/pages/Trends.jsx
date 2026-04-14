@@ -21,9 +21,10 @@ export default function Trends() {
   const [selectedEx, setSelectedEx] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [prs, setPrs] = useState([]);
-  const [timeRange, setTimeRange] = useState(TIME_RANGES[2]);
+  const [timeRange, setTimeRange] = useState(TIME_RANGES[1]); // default: last 4 weeks
   const [showRangeSheet, setShowRangeSheet] = useState(false);
   const [repFilter, setRepFilter] = useState('All');
+  const [modeFilter, setModeFilter] = useState(null); // null | 'speed' | 'strength'
   const [view, setView] = useState('chart'); // 'chart' | 'prs'
   const [trackedIds, setTrackedIds] = useState([]);
 
@@ -55,10 +56,16 @@ export default function Trends() {
     await setSetting('trackedExercises', next);
   };
 
+  const handleSelectEx = (ex) => {
+    setSelectedEx(ex);
+    setRepFilter('All');
+    setModeFilter(null);
+  };
+
   const isTracked = selectedEx && trackedIds.includes(selectedEx.id);
 
   // Build chart data
-  const chartData = buildChartData(sessions, selectedEx?.id, repFilter);
+  const chartData = buildChartData(sessions, selectedEx?.id, repFilter, modeFilter);
   const prPoints = chartData.filter(d => d.isPR);
 
   // PR list for selected exercise
@@ -76,6 +83,18 @@ export default function Trends() {
   const trackedExercises = trackedIds
     .map(id => exercises.find(e => e.id === id))
     .filter(Boolean);
+
+  // Auto-list: exercises with PRs, for the no-exercise-selected state
+  const prsByExercise = prs.reduce((acc, pr) => {
+    if (!acc[pr.exerciseId]) {
+      acc[pr.exerciseId] = { exerciseId: pr.exerciseId, exerciseName: pr.exerciseName, best: pr };
+    } else {
+      if (pr.weight > acc[pr.exerciseId].best.weight) acc[pr.exerciseId].best = pr;
+    }
+    return acc;
+  }, {});
+  const autoListExercises = Object.values(prsByExercise)
+    .sort((a, b) => a.exerciseName.localeCompare(b.exerciseName));
 
   return (
     <div className="page">
@@ -104,7 +123,7 @@ export default function Trends() {
                     <button
                       key={ex.id}
                       className={`chip ${selectedEx?.id === ex.id ? 'active' : ''}`}
-                      onClick={() => setSelectedEx(selectedEx?.id === ex.id ? null : ex)}
+                      onClick={() => handleSelectEx(selectedEx?.id === ex.id ? null : ex)}
                     >
                       {ex.name}
                     </button>
@@ -118,7 +137,7 @@ export default function Trends() {
               <ExerciseSelector
                 exercises={exercises}
                 selected={selectedEx}
-                onSelect={ex => { setSelectedEx(ex); setRepFilter('All'); }}
+                onSelect={handleSelectEx}
               />
               {selectedEx && (
                 <button
@@ -138,6 +157,30 @@ export default function Trends() {
                 </button>
               )}
             </div>
+
+            {/* Speed / Strength mode filter */}
+            {selectedEx?.hasSpeedStrengthMode && (
+              <div className="rep-filter-scroll" style={{ marginBottom: 8 }}>
+                <button
+                  className={`chip ${modeFilter === null ? 'active' : ''}`}
+                  onClick={() => setModeFilter(null)}
+                >
+                  All
+                </button>
+                <button
+                  className={`chip ${modeFilter === 'strength' ? 'active' : ''}`}
+                  onClick={() => setModeFilter(modeFilter === 'strength' ? null : 'strength')}
+                >
+                  Strength
+                </button>
+                <button
+                  className={`chip ${modeFilter === 'speed' ? 'active' : ''}`}
+                  onClick={() => setModeFilter(modeFilter === 'speed' ? null : 'speed')}
+                >
+                  Speed
+                </button>
+              </div>
+            )}
 
             {/* Rep filter */}
             {selectedEx && (
@@ -159,6 +202,7 @@ export default function Trends() {
               <div className="chart-card card">
                 <div className="chart-card__title">{selectedEx.name}</div>
                 <div className="chart-card__subtitle">
+                  {modeFilter ? `${modeFilter.charAt(0).toUpperCase() + modeFilter.slice(1)} · ` : ''}
                   {repFilter === 'All' ? 'Best weight per session' : `${repFilter}-rep max`}
                 </div>
                 <ResponsiveContainer width="100%" height={220}>
@@ -207,14 +251,33 @@ export default function Trends() {
                 <div className="empty-state__title">No data yet</div>
                 <div className="empty-state__subtitle">Log workouts with {selectedEx.name} to see progress here.</div>
               </div>
+            ) : autoListExercises.length > 0 ? (
+              /* Auto-list all tracked lifts */
+              <div className="auto-lift-list">
+                <div className="auto-lift-list__header">Your Lifts</div>
+                {autoListExercises.map(item => (
+                  <button
+                    key={item.exerciseId}
+                    className="auto-lift-item"
+                    onClick={() => {
+                      const ex = exercises.find(e => e.id === item.exerciseId);
+                      if (ex) handleSelectEx(ex);
+                    }}
+                  >
+                    <span className="auto-lift-item__name">{item.exerciseName}</span>
+                    <span className="auto-lift-item__pr">
+                      <span className="badge badge--pr">{item.best.repCount}RM</span>
+                      <span className="auto-lift-item__weight">{item.best.weight} lbs</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             ) : (
               <div className="empty-state">
                 <div className="empty-state__icon">🔍</div>
                 <div className="empty-state__title">Select an exercise</div>
                 <div className="empty-state__subtitle">
-                  {trackedExercises.length === 0
-                    ? 'Choose an exercise and tap ☆ to pin it here for quick access.'
-                    : 'Tap a tracked exercise above or choose one below.'}
+                  Choose an exercise and tap ☆ to pin it here for quick access.
                 </div>
               </div>
             )}
@@ -320,7 +383,7 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 // ─── Chart data builder ─────────────────────────────────────────────────────────
-function buildChartData(sessions, exerciseId, repFilter) {
+function buildChartData(sessions, exerciseId, repFilter, modeFilter) {
   if (!exerciseId || sessions.length === 0) return [];
 
   let runningMax = 0;
@@ -329,6 +392,9 @@ function buildChartData(sessions, exerciseId, repFilter) {
     .map(session => {
       const entry = session.exercises?.find(e => e.exerciseId === exerciseId);
       if (!entry) return null;
+
+      // Filter by speed/strength mode when set
+      if (modeFilter && entry.speedStrengthMode !== modeFilter) return null;
 
       const completedSets = entry.sets?.filter(s => s.completed && s.reps && s.weight) ?? [];
       const filteredSets = repFilter === 'All'

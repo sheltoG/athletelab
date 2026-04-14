@@ -76,12 +76,14 @@ h4 { font-size: 15px; font-weight: 600; }
 .page-content {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 16px 16px calc(var(--nav-height) + var(--safe-bottom) + 16px);
 }
 
 .page-content--no-nav {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 16px;
 }
 
@@ -116,6 +118,8 @@ h4 { font-size: 15px; font-weight: 600; }
   transition: opacity var(--transition), transform var(--transition);
   user-select: none;
   white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .btn:active { transform: scale(0.97); opacity: 0.85; }
 
@@ -152,7 +156,7 @@ h4 { font-size: 15px; font-weight: 600; }
   border-radius: var(--radius-md);
   color: var(--text);
   font-family: var(--font);
-  font-size: 15px;
+  font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
   padding: 12px 14px;
   width: 100%;
   outline: none;
@@ -278,15 +282,33 @@ h4 { font-size: 15px; font-weight: 600; }
 /* ===== SET ROW ===== */
 .set-row {
   display: grid;
-  grid-template-columns: 22px 54px 1fr 1fr 34px;
+  grid-template-columns: 22px 54px 1fr 1fr 34px 26px;
   gap: 6px;
   align-items: center;
   padding: 6px 0;
 }
-/* Isometric sets only have one input (seconds), so 4 columns */
-.set-row--iso {
-  grid-template-columns: 22px 54px 1fr 34px;
+.set-row--no-weight {
+  grid-template-columns: 22px 54px 1fr 34px 26px;
 }
+.set-row__delete {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 0;
+  touch-action: manipulation;
+  transition: color var(--transition);
+}
+.set-row__delete:active { color: var(--danger); }
 .set-row__num {
   font-size: 13px;
   color: var(--text-secondary);
@@ -306,7 +328,7 @@ h4 { font-size: 15px; font-weight: 600; }
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px; /* 16px prevents iOS auto-zoom on focus */
   font-weight: 600;
   padding: 8px 10px;
   text-align: center;
@@ -314,6 +336,7 @@ h4 { font-size: 15px; font-weight: 600; }
   width: 100%;
   font-family: var(--font);
   transition: border-color var(--transition);
+  touch-action: manipulation;
 }
 .set-row__input:focus { border-color: var(--accent); }
 .set-row__input--done {

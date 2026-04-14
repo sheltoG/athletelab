@@ -185,6 +185,19 @@ db.version(7).stores({
   }
 });
 
+db.version(8).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+}).upgrade(async tx => {
+  // Calf Raise: default extra left set
+  const calf = await tx.table('exercises').where('name').equals('Calf Raise').first();
+  if (calf) await tx.table('exercises').update(calf.id, { defaultExtraLeftSet: true });
+});
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },
@@ -195,7 +208,7 @@ const DEFAULT_EXERCISES = [
   { name: 'Bulgarian Split Squat', category: 'Lower Body', isCustom: false, tags: ['Lunge'] },
   { name: 'Leg Curl', category: 'Lower Body', isCustom: false },
   { name: 'Leg Extension', category: 'Lower Body', isCustom: false },
-  { name: 'Calf Raise', category: 'Lower Body', isCustom: false, isUnilateral: true },
+  { name: 'Calf Raise', category: 'Lower Body', isCustom: false, isUnilateral: true, defaultExtraLeftSet: true },
   // Upper Body
   { name: 'Bench Press', category: 'Upper Body', isCustom: false },
   { name: 'Incline Bench Press', category: 'Upper Body', isCustom: false },
