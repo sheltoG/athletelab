@@ -219,6 +219,23 @@ db.version(9).stores({
   }
 });
 
+db.version(10).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  for (const name of ['Dumbbell Row', 'Single Arm Supported Dumbbell Row', 'Dumbbell Reverse Lunge']) {
+    const ex = await tx.table('exercises').where('name').equals(name).first();
+    if (ex) await tx.table('exercises').update(ex.id, { tags: [...new Set([...(ex.tags || []), 'Dumbbell'])] });
+  }
+  const situp = await tx.table('exercises').where('name').equals('Ab Mat Situps').first();
+  if (situp) await tx.table('exercises').update(situp.id, { tags: [...new Set([...(situp.tags || []), 'BodyWeight'])] });
+});
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },
@@ -237,7 +254,7 @@ const DEFAULT_EXERCISES = [
   { name: 'Barbell Row', category: 'Upper Body', isCustom: false },
   { name: 'Pull-Up', category: 'Upper Body', isCustom: false },
   { name: 'Lat Pulldown', category: 'Upper Body', isCustom: false },
-  { name: 'Dumbbell Row', category: 'Upper Body', isCustom: false },
+  { name: 'Dumbbell Row', category: 'Upper Body', isCustom: false, tags: ['Dumbbell'] },
   { name: 'Cable Row', category: 'Upper Body', isCustom: false },
   { name: 'Dip', category: 'Upper Body', isCustom: false },
   { name: 'Tricep Pushdown', category: 'Upper Body', isCustom: false },
@@ -280,12 +297,12 @@ const DEFAULT_EXERCISES = [
   { name: 'Chin-ups (underhand grip)', category: 'Upper Body', isCustom: false, tags: ['Pull'] },
   { name: 'Pull-ups (overhand grip)', category: 'Upper Body', isCustom: false, tags: ['Pull'] },
   { name: 'Doorframe Lat Stretch', category: 'Upper Body', isCustom: false, isIsometric: true, tags: ['Stretch', 'Mobility'], videoUrl: 'https://youtube.com/shorts/tGytc-KB8y4?si=vYlyD03c8URa9-OJ', defaultSecs: 30 },
-  { name: 'Single Arm Supported Dumbbell Row', category: 'Upper Body', isCustom: false, tags: ['Pull'], videoUrl: 'https://youtu.be/DMo3HJoawrU?si=iUrI8CQ5Yt-w8Kse' },
+  { name: 'Single Arm Supported Dumbbell Row', category: 'Upper Body', isCustom: false, tags: ['Pull', 'Dumbbell'], videoUrl: 'https://youtu.be/DMo3HJoawrU?si=iUrI8CQ5Yt-w8Kse' },
   // v5 exercises
   { name: 'Trap Bar Deadlift', category: 'Lower Body', isCustom: false, hasSpeedStrengthMode: true, tags: ['Deadlift', 'Power'] },
-  { name: 'Dumbbell Reverse Lunge', category: 'Lower Body', isCustom: false, tags: ['Lunge'] },
+  { name: 'Dumbbell Reverse Lunge', category: 'Lower Body', isCustom: false, tags: ['Lunge', 'Dumbbell'] },
   { name: 'Single Leg RDL', category: 'Lower Body', isCustom: false, isUnilateral: true, tags: ['Hinge'] },
-  { name: 'Ab Mat Situps', category: 'Core', isCustom: false, tags: ['Core'] },
+  { name: 'Ab Mat Situps', category: 'Core', isCustom: false, tags: ['Core', 'BodyWeight'] },
   { name: 'Single Leg Slider Hamstring Curl', category: 'Lower Body', isCustom: false, isUnilateral: true, videoUrl: 'https://youtube.com/shorts/4gyBsdNG5Pk?si=lyrroOOzVxnwH7KS' },
   { name: 'Half Kneeling Thoracic Rotation With Side Bend', category: 'Upper Body', isCustom: false, tags: ['Mobility'], videoUrl: 'https://youtu.be/N9HXsefD_34?si=FMuqYtq5-C3ybR5l', defaultSets: 3 },
   { name: 'T-Spine Open Books', category: 'Upper Body', isCustom: false, tags: ['Mobility'], videoUrl: 'https://youtube.com/shorts/cncdlzYmbxg?si=WBMLcXN4c-ma-kUa' },

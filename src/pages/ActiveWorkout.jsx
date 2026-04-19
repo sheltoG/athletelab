@@ -631,7 +631,8 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
   };
 
   const isIso = entry.isIsometric;
-  const isMobility = entry.tags?.includes('Mobility');
+  const isMobility = entry.tags?.includes('Mobility') || entry.tags?.includes('BodyWeight');
+  const isDumbbell = entry.tags?.includes('Dumbbell');
   const hasExtra = entry.sets.some(s => s.isExtraLeft);
 
   // Skipped state — collapsed view
@@ -714,7 +715,7 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
       <div className={`set-header ${isMobility ? 'set-header--no-weight' : ''}`}>
         <span>Set</span>
         <span>Prev</span>
-        {!isMobility && <span>lbs</span>}
+        {!isMobility && <span>{isDumbbell ? 'per DB' : 'lbs'}</span>}
         <span>{isIso ? 'Secs' : 'Reps'}</span>
         <span></span>
         <span></span>
