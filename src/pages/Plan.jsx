@@ -283,18 +283,24 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
       ) : (
         <div className="cycle-week-exercises">
           {allGoals.map(goal => {
-            const weekTarget = goal.weeklyProgression?.[selectedWeek - 1] ?? null;
+            // Use per-week progression if available; fall back to end target for old data
+            const rawTarget = goal.weeklyProgression?.[selectedWeek - 1] ?? null;
+            const weekTarget = rawTarget || goal.targetWeight || null;
             const weekActual = getBestInSessions(weekSessions, goal.exerciseId);
-            const hit = weekActual && weekTarget && weekActual >= weekTarget;
-            const partial = weekActual && weekTarget && weekActual < weekTarget;
+            const hasTarget = weekTarget !== null && weekTarget > 0;
+            const hit = weekActual && hasTarget && weekActual >= weekTarget;
+            const partial = weekActual && hasTarget && weekActual < weekTarget;
 
-            // Progress bar: actual vs week target
+            // Progress bar vs week target
             let barPct = 0;
-            if (weekTarget && goal.startWeight && weekTarget > goal.startWeight) {
-              const base = goal.startWeight;
-              barPct = Math.min(100, Math.max(0, ((weekActual || base) - base) / (weekTarget - base) * 100));
-            } else if (weekActual && weekTarget) {
-              barPct = Math.min(100, (weekActual / weekTarget) * 100);
+            if (hasTarget && weekActual) {
+              if (goal.startWeight && weekTarget > goal.startWeight) {
+                barPct = Math.min(100, Math.max(0,
+                  ((weekActual - goal.startWeight) / (weekTarget - goal.startWeight)) * 100
+                ));
+              } else {
+                barPct = Math.min(100, (weekActual / weekTarget) * 100);
+              }
             }
 
             return (
@@ -302,13 +308,11 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
                 <div className="cycle-ex-row__top">
                   <span className="cycle-ex-row__name">{goal.exerciseName}</span>
                   <span className="cycle-ex-row__right">
-                    {weekTarget ? (
-                      <>
-                        <span className="cycle-ex-row__target">
-                          {hit && <span className="cycle-ex-row__check">✓ </span>}
-                          {weekTarget} lbs
-                        </span>
-                      </>
+                    {hasTarget ? (
+                      <span className="cycle-ex-row__target">
+                        {hit && <span className="cycle-ex-row__check">✓ </span>}
+                        {weekTarget} lbs
+                      </span>
                     ) : (
                       <span className="cycle-ex-row__no-target">no target</span>
                     )}
@@ -327,14 +331,11 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
                   )}
                 </div>
 
-                {weekTarget !== null && (
+                {hasTarget && (
                   <div className="cycle-goal-bar" style={{ marginTop: 4 }}>
                     <div
                       className="cycle-goal-bar__fill"
-                      style={{
-                        width: `${barPct}%`,
-                        background: hit ? 'var(--success)' : 'var(--accent)',
-                      }}
+                      style={{ width: `${barPct}%`, background: hit ? 'var(--success)' : 'var(--accent)' }}
                     />
                   </div>
                 )}
@@ -389,9 +390,9 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
     (cycle?.goals ?? []).map(g => ({
       exerciseId: g.exerciseId,
       exerciseName: g.exerciseName,
-      startWeight: g.startWeight ?? '',
-      targetWeight: g.targetWeight ?? '',
-      targetReps: g.targetReps ?? '',
+      startWeight: g.startWeight || '',
+      targetWeight: g.targetWeight || '',
+      targetReps: g.targetReps || '',
     }))
   );
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
