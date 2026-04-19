@@ -445,11 +445,17 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
       const targetW = Number(g.targetWeight) || 0;
       const targetR = Number(g.targetReps) || 0;
       let weeklyProgression = null;
-      if (startW && targetW) {
-        const step = (targetW - startW) / 3;
-        weeklyProgression = [0, 1, 2, 3].map(w =>
-          w < 3 ? Math.round((startW + step * w) * 4) / 4 : targetW
-        );
+      if (targetW > 0) {
+        if (startW > 0 && startW < targetW) {
+          // Linear ramp from start → target over 4 weeks
+          const step = (targetW - startW) / 3;
+          weeklyProgression = [0, 1, 2, 3].map(w =>
+            w < 3 ? Math.round((startW + step * w) * 4) / 4 : targetW
+          );
+        } else {
+          // Target only — hold the same target every week
+          weeklyProgression = [targetW, targetW, targetW, targetW];
+        }
       }
       return {
         exerciseId: g.exerciseId,
