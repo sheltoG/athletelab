@@ -89,6 +89,7 @@ export default function ActiveWorkout() {
   const [elapsed, setElapsed] = useState(0);
   const [exercises, setExercises] = useState([]);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [replacingEntryId, setReplacingEntryId] = useState(null);
   const [restRemaining, setRestRemaining] = useState(null);
   const [restActive, setRestActive] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
@@ -206,8 +207,34 @@ export default function ActiveWorkout() {
 
   // ─── Exercise / set mutations ───────────────────────────────────────────────
   const addExercise = (exercise) => {
-    setExercises(prev => [...prev, makeExerciseEntry(exercise)]);
+    if (replacingEntryId) {
+      replaceExercise(replacingEntryId, exercise);
+      setReplacingEntryId(null);
+    } else {
+      setExercises(prev => [...prev, makeExerciseEntry(exercise)]);
+    }
     setShowExercisePicker(false);
+  };
+
+  const replaceExercise = (entryId, exercise) => {
+    setExercises(prev => prev.map(e => {
+      if (e.id !== entryId) return e;
+      // Reset sets when switching between iso and non-iso to avoid input mismatch
+      const typeChanged = e.isIsometric !== (exercise.isIsometric || false);
+      return {
+        ...e,
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        category: exercise.category,
+        isIsometric: exercise.isIsometric || false,
+        isUnilateral: exercise.isUnilateral || false,
+        hasSpeedStrengthMode: exercise.hasSpeedStrengthMode || false,
+        videoUrl: exercise.videoUrl || '',
+        tags: exercise.tags || [],
+        speedStrengthMode: null,
+        sets: typeChanged ? [makeSet()] : e.sets,
+      };
+    }));
   };
 
   const removeExercise = (entryId) => {
@@ -378,6 +405,7 @@ export default function ActiveWorkout() {
       onUpdateExercise={(field, val) => updateExerciseField(entry.id, field, val)}
       onToggleExtraLeft={() => toggleExtraLeftSet(entry.id)}
       onToggleSkip={() => toggleSkip(entry.id)}
+      onReplace={() => { setReplacingEntryId(entry.id); setShowExercisePicker(true); }}
     />
   );
 
@@ -496,7 +524,8 @@ export default function ActiveWorkout() {
       {showExercisePicker && (
         <ExercisePicker
           onSelect={addExercise}
-          onClose={() => setShowExercisePicker(false)}
+          replaceMode={!!replacingEntryId}
+          onClose={() => { setShowExercisePicker(false); setReplacingEntryId(null); }}
         />
       )}
 
@@ -540,7 +569,7 @@ export default function ActiveWorkout() {
 }
 
 // ─── Exercise card ──────────────────────────────────────────────────────────────
-function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleComplete, onRemoveExercise, onUpdateExercise, onToggleExtraLeft, onToggleSkip }) {
+function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleComplete, onRemoveExercise, onUpdateExercise, onToggleExtraLeft, onToggleSkip, onReplace }) {
   const [prevSets, setPrevSets] = useState([]);
   const [isoCountdowns, setIsoCountdowns] = useState({});
   const isoTimerRefs = useRef({});
@@ -648,6 +677,11 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
               </svg>
             </a>
           )}
+          <button className="btn btn--ghost btn--sm exercise-card__skip-btn" onClick={onReplace} title="Replace exercise">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+            </svg>
+          </button>
           <button className="btn btn--ghost btn--sm exercise-card__skip-btn" onClick={onToggleSkip} title="Skip exercise">
             Skip
           </button>
@@ -839,7 +873,7 @@ function IsometricSetRow({ set, index, prev, onUpdate, onToggle, onRemove, count
 // ─── Exercise picker ────────────────────────────────────────────────────────────
 const CATEGORIES = ['All', 'Lower Body', 'Upper Body', 'Olympic / Power', 'Core', 'Plyometric', 'Cardio'];
 
-function ExercisePicker({ onSelect, onClose }) {
+function ExercisePicker({ onSelect, onClose, replaceMode }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [allExercises, setAllExercises] = useState([]);
@@ -870,7 +904,7 @@ function ExercisePicker({ onSelect, onClose }) {
       <div className="sheet picker-sheet" onClick={e => e.stopPropagation()}>
         <div className="sheet__handle" />
         <div className="picker-top">
-          <div className="sheet__title" style={{ marginBottom: 0 }}>Add Exercise</div>
+          <div className="sheet__title" style={{ marginBottom: 0 }}>{replaceMode ? 'Replace Exercise' : 'Add Exercise'}</div>
           <button className="btn btn--ghost btn--icon" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>

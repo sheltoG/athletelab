@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, ReferenceDot,
 } from 'recharts';
 import { db, getSetting, setSetting } from '../db';
+import Diagnostics from './Diagnostics';
 import './Trends.css';
 
 const TIME_RANGES = [
@@ -25,7 +26,7 @@ export default function Trends() {
   const [showRangeSheet, setShowRangeSheet] = useState(false);
   const [repFilter, setRepFilter] = useState('All');
   const [modeFilter, setModeFilter] = useState(null); // null | 'speed' | 'strength'
-  const [view, setView] = useState('chart'); // 'chart' | 'prs'
+  const [view, setView] = useState('chart'); // 'chart' | 'prs' | 'diagnostics'
   const [trackedIds, setTrackedIds] = useState([]);
 
   useEffect(() => {
@@ -110,6 +111,7 @@ export default function Trends() {
         <div className="plan-tabs" style={{ marginBottom: 16 }}>
           <button className={`plan-tab ${view === 'chart' ? 'plan-tab--active' : ''}`} onClick={() => setView('chart')}>Lift Progress</button>
           <button className={`plan-tab ${view === 'prs' ? 'plan-tab--active' : ''}`} onClick={() => setView('prs')}>PR Records</button>
+          <button className={`plan-tab ${view === 'diagnostics' ? 'plan-tab--active' : ''}`} onClick={() => setView('diagnostics')}>Diagnostics</button>
         </div>
 
         {view === 'chart' && (
@@ -283,6 +285,8 @@ export default function Trends() {
             )}
           </>
         )}
+
+        {view === 'diagnostics' && <Diagnostics />}
 
         {view === 'prs' && (
           <div className="pr-list">

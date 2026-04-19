@@ -193,9 +193,30 @@ db.version(8).stores({
   personalRecords: '++id, exerciseId, repCount',
   settings: 'key',
 }).upgrade(async tx => {
-  // Calf Raise: default extra left set
   const calf = await tx.table('exercises').where('name').equals('Calf Raise').first();
   if (calf) await tx.table('exercises').update(calf.id, { defaultExtraLeftSet: true });
+});
+
+db.version(9).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const newExercises = [
+    { name: 'Band Walks', category: 'Lower Body', isCustom: false, tags: ['Hip'] },
+    { name: 'Single Leg Glute Bridge', category: 'Lower Body', isCustom: false, isUnilateral: true },
+    { name: 'High Hip Plank Circles', category: 'Core', isCustom: false, tags: ['Mobility', 'Core'] },
+    { name: 'Lateral Jumps', category: 'Plyometric', isCustom: false, tags: ['Plyo'] },
+    { name: 'Single Leg Medball Slams', category: 'Plyometric', isCustom: false, isUnilateral: true, tags: ['Power', 'Plyo'] },
+  ];
+  for (const ex of newExercises) {
+    const existing = await tx.table('exercises').where('name').equals(ex.name).first();
+    if (!existing) await tx.table('exercises').add(ex);
+  }
 });
 
 const DEFAULT_EXERCISES = [
@@ -243,6 +264,13 @@ const DEFAULT_EXERCISES = [
   // Plyometric additions
   { name: 'Single Leg Box Jump', category: 'Plyometric', isCustom: false, tags: ['Plyo'] },
   { name: 'Med Ball Golf Swing Slam', category: 'Plyometric', isCustom: false, tags: ['Power', 'Plyo'], videoUrl: 'https://youtu.be/TYtdxT1vIx4?si=GGOzP-cG6ZdyTCyH&t=347' },
+  { name: 'Lateral Jumps', category: 'Plyometric', isCustom: false, tags: ['Plyo'] },
+  { name: 'Single Leg Medball Slams', category: 'Plyometric', isCustom: false, isUnilateral: true, tags: ['Power', 'Plyo'] },
+  // Lower Body additions
+  { name: 'Band Walks', category: 'Lower Body', isCustom: false, tags: ['Hip'] },
+  { name: 'Single Leg Glute Bridge', category: 'Lower Body', isCustom: false, isUnilateral: true },
+  // Core additions
+  { name: 'High Hip Plank Circles', category: 'Core', isCustom: false, tags: ['Mobility', 'Core'] },
   // Cardio / Conditioning
   { name: 'Sprint', category: 'Cardio', isCustom: false },
   { name: 'Sled Push', category: 'Cardio', isCustom: false },
