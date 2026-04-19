@@ -23,13 +23,14 @@
   cursor: pointer;
   transition: all var(--transition);
   font-family: var(--font);
+  touch-action: manipulation;
 }
 .plan-tab--active {
   background: var(--surface-3);
   color: var(--text);
 }
 
-/* Template card */
+/* ── Template card ─────────────────────────────────────────── */
 .template-card {
   margin-bottom: 10px;
 }
@@ -69,23 +70,39 @@
   border: 1px solid var(--border);
 }
 
-/* Cycle card */
+/* ── Cycle card ────────────────────────────────────────────── */
 .cycle-card {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  padding: 16px;
 }
 .cycle-card__row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 .cycle-card__name {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
 }
 .cycle-card__dates {
   font-size: 12px;
   color: var(--text-secondary);
-  margin-top: 2px;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cycle-status-dot--active {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.cycle-status-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 .cycle-card__template-tag {
   display: inline-block;
@@ -97,87 +114,125 @@
   padding: 2px 8px;
   margin-top: 6px;
 }
-.cycle-week-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
+
+/* ── Week tabs ─────────────────────────────────────────────── */
+.cycle-week-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
 }
-.cycle-week {
-  flex: 1;
-  text-align: center;
+.cycle-week-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   padding: 8px 4px;
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-2);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  border: 1.5px solid var(--border);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all var(--transition);
+  touch-action: manipulation;
 }
-.cycle-week--done {
-  background: var(--accent-dim);
+.cycle-week-tab__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.cycle-week-tab__now {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: var(--accent);
-  border-color: var(--accent);
-  opacity: 0.6;
 }
-.cycle-week--current {
-  background: var(--accent);
-  color: #000;
+.cycle-week-tab__range {
+  font-size: 9px;
+  color: var(--text-tertiary);
+}
+.cycle-week-tab--active {
+  background: var(--surface-3);
   border-color: var(--accent);
+}
+.cycle-week-tab--active .cycle-week-tab__label {
+  color: var(--text);
+}
+.cycle-week-tab--current .cycle-week-tab__label {
+  color: var(--accent);
+}
+.cycle-week-tab--past .cycle-week-tab__label {
+  color: var(--text-tertiary);
+}
+.cycle-week-tab--future {
+  opacity: 0.45;
 }
 
-/* Cycle goals (display) */
-.cycle-goals {
-  margin-top: 12px;
+.cycle-week-range {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+/* ── Exercise rows ─────────────────────────────────────────── */
+.cycle-week-exercises {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
-.cycle-goal-item--display {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+.cycle-ex-row {
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  transition: border-color var(--transition);
 }
-.cycle-goal-item__top {
+.cycle-ex-row--hit {
+  border-color: var(--success);
+}
+.cycle-ex-row__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  margin-bottom: 3px;
 }
-.cycle-goal-name {
+.cycle-ex-row__name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-right: 8px;
 }
-.cycle-goal-item__weights {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+.cycle-ex-row__right {
   flex-shrink: 0;
+}
+.cycle-ex-row__target {
   font-size: 12px;
-}
-.cycle-goal-item__current {
-  font-weight: 800;
-  color: var(--accent);
-}
-.cycle-goal-item__start {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-secondary);
 }
-.cycle-goal-item__sep {
-  color: var(--text-tertiary);
-  margin: 0 2px;
+.cycle-ex-row__check {
+  color: var(--success);
 }
-.cycle-goal-item__target {
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-.cycle-goal-item__reps {
+.cycle-ex-row__no-target {
+  font-size: 11px;
   color: var(--text-tertiary);
 }
+.cycle-ex-row__actual {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.cycle-ex-row__empty {
+  color: var(--text-tertiary);
+}
+
+/* Progress bar (shared) */
 .cycle-goal-bar {
   height: 4px;
   background: var(--surface-3);
@@ -186,70 +241,77 @@
 }
 .cycle-goal-bar__fill {
   height: 100%;
-  background: var(--accent);
   border-radius: var(--radius-full);
   transition: width 0.4s ease;
   min-width: 3px;
 }
 
-/* Template form */
-.template-ex-row {
-  background: var(--surface-2);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  margin-bottom: 8px;
+/* ── Overall progress ──────────────────────────────────────── */
+.cycle-overall {
+  margin-top: 14px;
 }
-.template-ex-row__name {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 8px;
+.cycle-overall__divider {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: 12px;
 }
-.template-ex-row__inputs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.template-ex-row__field {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-}
-.template-ex-row__field label {
+.cycle-overall__title {
   font-size: 10px;
-  color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
 }
-
-/* Dropdown */
-.exercise-dropdown {
-  background: var(--surface-2);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin-bottom: 8px;
-  border: 1px solid var(--border);
+.cycle-overall__row {
+  margin-bottom: 10px;
 }
-.exercise-dropdown__item {
+.cycle-overall__row-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: 10px 14px;
+  margin-bottom: 5px;
+}
+.cycle-overall__name {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+.cycle-overall__values {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.cycle-overall__pct {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 3px;
+  text-align: right;
+}
+
+/* ── No goals state ────────────────────────────────────────── */
+.cycle-no-goals {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 12px 0 4px;
+  text-align: center;
+}
+.cycle-no-goals__edit {
   background: none;
   border: none;
-  border-bottom: 1px solid var(--border);
-  color: var(--text);
-  font-size: 14px;
+  color: var(--accent);
   font-family: var(--font);
-  text-align: left;
+  font-size: 13px;
   cursor: pointer;
+  font-weight: 600;
+  touch-action: manipulation;
 }
-.exercise-dropdown__item:last-child { border-bottom: none; }
-.exercise-dropdown__item:active { background: var(--surface-3); }
 
-/* Cycle form sheet */
+/* ── Cycle form ────────────────────────────────────────────── */
 .cycle-form-sheet {
   max-height: 90vh;
   overflow-y: auto;
@@ -305,7 +367,35 @@
   font-size: 13px;
 }
 
-/* Exercise goal input rows in cycle form */
+/* Week progression preview (inside goal input row) */
+.cycle-form__progression-preview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+.cycle-form__prog-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+}
+.cycle-form__prog-week {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+}
+.cycle-form__prog-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+/* Goal input rows */
 .cycle-goal-input-row {
   background: var(--surface-2);
   border-radius: var(--radius-md);
@@ -358,4 +448,61 @@
   color: var(--text-tertiary);
   padding-bottom: 10px;
   flex-shrink: 0;
+}
+
+/* Shared dropdown */
+.exercise-dropdown {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+}
+.exercise-dropdown__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.exercise-dropdown__item:last-child { border-bottom: none; }
+.exercise-dropdown__item:active { background: var(--surface-3); }
+
+/* Template form rows */
+.template-ex-row {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.template-ex-row__name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.template-ex-row__inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.template-ex-row__field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.template-ex-row__field label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }

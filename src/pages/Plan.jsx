@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../db';
 import './Plan.css';
 
+function fmtShort(ms) {
+  return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function Plan() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('templates'); // 'templates' | 'cycles'
@@ -33,7 +37,6 @@ export default function Plan() {
       <div className="page-content">
         <h2 className="plan-title">Plan</h2>
 
-        {/* Tab toggle */}
         <div className="plan-tabs">
           <button className={`plan-tab ${tab === 'templates' ? 'plan-tab--active' : ''}`} onClick={() => setTab('templates')}>
             Your Templates
@@ -147,59 +150,87 @@ function TemplateCard({ template, onEdit, onDelete }) {
   );
 }
 
-// ─── Cycle card ─────────────────────────────────────────────────────────────────
+// ─── Cycle card (week-by-week view) ─────────────────────────────────────────────
 function CycleCard({ cycle, templates, onEdit, onDelete }) {
-  const [exerciseBests, setExerciseBests] = useState({});
+  const [sessions, setSessions] = useState([]);
+  const [selectedWeek, setSelectedWeek] = useState(null);
 
-  const start = new Date(cycle.startDate);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 27);
-  const endMs = end.getTime() + 24 * 3600 * 1000;
-  const today = new Date();
-  const weekNum = Math.min(4, Math.max(1, Math.ceil((today - start) / (7 * 24 * 3600 * 1000))));
-  const isActive = today >= start && today <= end;
+  const startMs = cycle.startDate;
+  const endMs = startMs + 28 * 24 * 3600 * 1000; // 4 weeks
+  const now = Date.now();
+  const currentWeek = Math.min(4, Math.max(1, Math.ceil((now - startMs) / (7 * 24 * 3600 * 1000))));
+  const isActive = now >= startMs && now < endMs;
+  const isCompleted = now >= endMs;
+  const isFuture = now < startMs;
   const templateName = cycle.templateId
     ? templates.find(t => t.id === cycle.templateId)?.name
     : null;
 
-  // Load best weights for each exercise in this cycle's date range
+  // Default selected week
   useEffect(() => {
-    if (!cycle.goals?.length) return;
-    db.workoutSessions
-      .where('date').between(cycle.startDate, endMs)
-      .toArray()
-      .then(sessions => {
-        const bests = {};
-        for (const session of sessions) {
-          for (const entry of (session.exercises || [])) {
-            for (const set of (entry.sets || [])) {
-              if (set.completed && set.weight) {
-                const w = Number(set.weight);
-                if (!bests[entry.exerciseId] || w > bests[entry.exerciseId]) {
-                  bests[entry.exerciseId] = w;
-                }
-              }
-            }
-          }
-        }
-        setExerciseBests(bests);
-      });
+    setSelectedWeek(isCompleted ? 4 : isFuture ? 1 : currentWeek);
   }, [cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const goalsWithTargets = (cycle.goals || []).filter(g => g.targetWeight);
+  useEffect(() => {
+    db.workoutSessions
+      .where('date').between(startMs, endMs + 24 * 3600 * 1000)
+      .toArray()
+      .then(setSessions);
+  }, [cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const weekMs = (w) => ({
+    start: startMs + (w - 1) * 7 * 24 * 3600 * 1000,
+    end: startMs + w * 7 * 24 * 3600 * 1000,
+  });
+
+  const getBestInSessions = (sessionList, exerciseId) => {
+    let best = null;
+    for (const s of sessionList) {
+      for (const e of (s.exercises || [])) {
+        if (e.exerciseId !== exerciseId) continue;
+        for (const set of (e.sets || [])) {
+          if (set.completed && set.weight) {
+            const w = Number(set.weight);
+            if (!best || w > best) best = w;
+          }
+        }
+      }
+    }
+    return best;
+  };
+
+  const getWeekSessions = (w) => {
+    const { start, end } = weekMs(w);
+    return sessions.filter(s => s.date >= start && s.date < end);
+  };
+
+  const weekSessions = selectedWeek ? getWeekSessions(selectedWeek) : [];
+  const goals = cycle.goals || [];
+  const goalsWithProgression = goals.filter(g => g.weeklyProgression?.length === 4);
+  const allGoals = goals; // show all goals, even those without targets
+
+  // Overall progress: use best across entire cycle vs end-of-cycle target
+  const cycleOverall = goalsWithProgression.map(g => {
+    const best = getBestInSessions(sessions, g.exerciseId);
+    const pct = g.targetWeight > g.startWeight
+      ? Math.min(100, Math.max(0, ((best || g.startWeight) - g.startWeight) / (g.targetWeight - g.startWeight) * 100))
+      : 0;
+    return { ...g, best, pct };
+  });
 
   return (
     <div className="card cycle-card">
+      {/* ── Header ── */}
       <div className="cycle-card__row">
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="cycle-card__name">{cycle.name}</div>
           <div className="cycle-card__dates">
-            {start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
-            {end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {fmtShort(startMs)} – {fmtShort(endMs)}
+            {isActive && <span className="cycle-status-dot cycle-status-dot--active" />}
+            {isCompleted && <span className="cycle-status-label"> · Completed</span>}
+            {isFuture && <span className="cycle-status-label"> · Upcoming</span>}
           </div>
-          {templateName && (
-            <div className="cycle-card__template-tag">{templateName}</div>
-          )}
+          {templateName && <div className="cycle-card__template-tag">{templateName}</div>}
         </div>
         <div className="template-card__actions">
           <button className="btn btn--ghost btn--icon" onClick={onEdit}>
@@ -215,52 +246,132 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
         </div>
       </div>
 
-      {/* Week progress bar */}
-      {isActive && (
-        <div className="cycle-week-row">
-          {[1, 2, 3, 4].map(w => (
-            <div key={w} className={`cycle-week ${w < weekNum ? 'cycle-week--done' : ''} ${w === weekNum ? 'cycle-week--current' : ''}`}>
-              W{w}
-            </div>
-          ))}
+      {/* ── Week selector tabs ── */}
+      <div className="cycle-week-tabs">
+        {[1, 2, 3, 4].map(w => {
+          const { start: wStart, end: wEnd } = weekMs(w);
+          const wPast = wEnd <= now;
+          const wCurrent = w === currentWeek && isActive;
+          const wFuture = wStart > now;
+          return (
+            <button
+              key={w}
+              className={`cycle-week-tab ${selectedWeek === w ? 'cycle-week-tab--active' : ''} ${wCurrent ? 'cycle-week-tab--current' : ''} ${wPast && selectedWeek !== w ? 'cycle-week-tab--past' : ''} ${wFuture ? 'cycle-week-tab--future' : ''}`}
+              onClick={() => setSelectedWeek(w)}
+            >
+              <span className="cycle-week-tab__label">W{w}</span>
+              {wCurrent && <span className="cycle-week-tab__now">now</span>}
+              {wPast && <span className="cycle-week-tab__range">{fmtShort(wStart)}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Week date range ── */}
+      {selectedWeek && (
+        <div className="cycle-week-range">
+          {fmtShort(weekMs(selectedWeek).start)} – {fmtShort(weekMs(selectedWeek).end - 24 * 3600 * 1000)}
         </div>
       )}
 
-      {/* Exercise goals with live progress */}
-      {goalsWithTargets.length > 0 && (
-        <div className="cycle-goals">
-          {goalsWithTargets.map((g, i) => {
-            const best = exerciseBests[g.exerciseId] ?? null;
-            const start = Number(g.startWeight) || 0;
-            const target = Number(g.targetWeight);
-            const current = best ?? start;
-            const pct = target > start
-              ? Math.min(100, Math.max(0, ((current - start) / (target - start)) * 100))
-              : 0;
+      {/* ── Exercise rows for selected week ── */}
+      {allGoals.length === 0 ? (
+        <div className="cycle-no-goals">
+          No exercise goals set.{' '}
+          <button className="cycle-no-goals__edit" onClick={onEdit}>Add targets →</button>
+        </div>
+      ) : (
+        <div className="cycle-week-exercises">
+          {allGoals.map(goal => {
+            const weekTarget = goal.weeklyProgression?.[selectedWeek - 1] ?? null;
+            const weekActual = getBestInSessions(weekSessions, goal.exerciseId);
+            const hit = weekActual && weekTarget && weekActual >= weekTarget;
+            const partial = weekActual && weekTarget && weekActual < weekTarget;
+
+            // Progress bar: actual vs week target
+            let barPct = 0;
+            if (weekTarget && goal.startWeight && weekTarget > goal.startWeight) {
+              const base = goal.startWeight;
+              barPct = Math.min(100, Math.max(0, ((weekActual || base) - base) / (weekTarget - base) * 100));
+            } else if (weekActual && weekTarget) {
+              barPct = Math.min(100, (weekActual / weekTarget) * 100);
+            }
 
             return (
-              <div key={i} className="cycle-goal-item--display">
-                <div className="cycle-goal-item__top">
-                  <span className="cycle-goal-name">{g.exerciseName}</span>
-                  <span className="cycle-goal-item__weights">
-                    {best ? (
-                      <span className="cycle-goal-item__current">{best} lbs</span>
-                    ) : start ? (
-                      <span className="cycle-goal-item__start">{start} lbs</span>
-                    ) : null}
-                    <span className="cycle-goal-item__sep"> / </span>
-                    <span className="cycle-goal-item__target">{target} lbs</span>
-                    {g.targetReps ? <span className="cycle-goal-item__reps"> × {g.targetReps}</span> : null}
+              <div key={goal.exerciseId} className={`cycle-ex-row ${hit ? 'cycle-ex-row--hit' : ''}`}>
+                <div className="cycle-ex-row__top">
+                  <span className="cycle-ex-row__name">{goal.exerciseName}</span>
+                  <span className="cycle-ex-row__right">
+                    {weekTarget ? (
+                      <>
+                        <span className="cycle-ex-row__target">
+                          {hit && <span className="cycle-ex-row__check">✓ </span>}
+                          {weekTarget} lbs
+                        </span>
+                      </>
+                    ) : (
+                      <span className="cycle-ex-row__no-target">no target</span>
+                    )}
                   </span>
                 </div>
-                {target > 0 && (
-                  <div className="cycle-goal-bar">
-                    <div className="cycle-goal-bar__fill" style={{ width: `${pct}%` }} />
+
+                <div className="cycle-ex-row__actual">
+                  {weekActual ? (
+                    <span style={{ color: hit ? 'var(--success)' : partial ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                      {weekActual} lbs logged
+                    </span>
+                  ) : (
+                    <span className="cycle-ex-row__empty">
+                      {weekMs(selectedWeek).start > now ? '—' : 'Not logged this week'}
+                    </span>
+                  )}
+                </div>
+
+                {weekTarget !== null && (
+                  <div className="cycle-goal-bar" style={{ marginTop: 4 }}>
+                    <div
+                      className="cycle-goal-bar__fill"
+                      style={{
+                        width: `${barPct}%`,
+                        background: hit ? 'var(--success)' : 'var(--accent)',
+                      }}
+                    />
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Overall progress towards end-of-block goal ── */}
+      {cycleOverall.length > 0 && (
+        <div className="cycle-overall">
+          <div className="cycle-overall__divider" />
+          <div className="cycle-overall__title">End Goal Progress</div>
+          {cycleOverall.map(g => (
+            <div key={g.exerciseId} className="cycle-overall__row">
+              <div className="cycle-overall__row-top">
+                <span className="cycle-overall__name">{g.exerciseName}</span>
+                <span className="cycle-overall__values">
+                  <span style={{ color: g.pct >= 100 ? 'var(--success)' : 'var(--accent)', fontWeight: 700 }}>
+                    {g.best ?? g.startWeight ?? '—'}
+                  </span>
+                  <span style={{ color: 'var(--text-tertiary)' }}> / {g.targetWeight} lbs</span>
+                </span>
+              </div>
+              <div className="cycle-goal-bar">
+                <div
+                  className="cycle-goal-bar__fill"
+                  style={{
+                    width: `${g.pct}%`,
+                    background: g.pct >= 100 ? 'var(--success)' : 'var(--accent)',
+                  }}
+                />
+              </div>
+              <div className="cycle-overall__pct">{Math.round(g.pct)}% to goal</div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -274,16 +385,15 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
     ? new Date(cycle.startDate).toISOString().split('T')[0]
     : new Date().toISOString().split('T')[0]);
   const [selectedTemplateId, setSelectedTemplateId] = useState(cycle?.templateId ?? null);
-  const [goals, setGoals] = useState(() => {
-    // Initialize goals; preserve existing if editing
-    return (cycle?.goals ?? []).map(g => ({
+  const [goals, setGoals] = useState(() =>
+    (cycle?.goals ?? []).map(g => ({
       exerciseId: g.exerciseId,
       exerciseName: g.exerciseName,
       startWeight: g.startWeight ?? '',
       targetWeight: g.targetWeight ?? '',
       targetReps: g.targetReps ?? '',
-    }));
-  });
+    }))
+  );
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [allExercises, setAllExercises] = useState([]);
@@ -292,16 +402,14 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
     db.exercises.orderBy('name').toArray().then(setAllExercises);
   }, []);
 
-  // When template is selected, merge its exercises into goals
   useEffect(() => {
     if (!selectedTemplateId) return;
     const tmpl = templates.find(t => t.id === selectedTemplateId);
     if (!tmpl?.exercises?.length) return;
-
     setGoals(prev => {
-      const existingByExId = {};
-      prev.forEach(g => { existingByExId[g.exerciseId] = g; });
-      return tmpl.exercises.map(ex => existingByExId[ex.exerciseId] ?? {
+      const existing = {};
+      prev.forEach(g => { existing[g.exerciseId] = g; });
+      return tmpl.exercises.map(ex => existing[ex.exerciseId] ?? {
         exerciseId: ex.exerciseId,
         exerciseName: ex.exerciseName,
         startWeight: '',
@@ -337,11 +445,10 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
       const targetR = Number(g.targetReps) || 0;
       let weeklyProgression = null;
       if (startW && targetW) {
-        weeklyProgression = [0, 1, 2, 3].map(w => {
-          const step = (targetW - startW) / 3;
-          return Math.round((startW + step * w) * 4) / 4;
-        });
-        weeklyProgression[3] = targetW;
+        const step = (targetW - startW) / 3;
+        weeklyProgression = [0, 1, 2, 3].map(w =>
+          w < 3 ? Math.round((startW + step * w) * 4) / 4 : targetW
+        );
       }
       return {
         exerciseId: g.exerciseId,
@@ -395,37 +502,24 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
           style={{ marginBottom: 16, colorScheme: 'dark' }}
         />
 
-        {/* Template selector */}
         <label className="cycle-form__label">Training Template</label>
         {selectedTemplateName ? (
           <div className="cycle-form__template-selected">
             <span className="cycle-form__template-name">{selectedTemplateName}</span>
-            <button
-              className="btn btn--ghost btn--sm"
-              onClick={() => { setSelectedTemplateId(null); setGoals([]); }}
-            >
-              Clear
-            </button>
-            <button className="btn btn--ghost btn--sm" onClick={() => setShowTemplatePicker(true)}>
-              Change
-            </button>
+            <button className="btn btn--ghost btn--sm" onClick={() => { setSelectedTemplateId(null); setGoals([]); }}>Clear</button>
+            <button className="btn btn--ghost btn--sm" onClick={() => setShowTemplatePicker(true)}>Change</button>
           </div>
         ) : (
-          <button
-            className="btn btn--secondary btn--full"
-            style={{ marginBottom: 16 }}
-            onClick={() => setShowTemplatePicker(true)}
-          >
+          <button className="btn btn--secondary btn--full" style={{ marginBottom: 16 }} onClick={() => setShowTemplatePicker(true)}>
             Select Template
           </button>
         )}
 
-        {/* Exercise goals */}
         {goals.length > 0 && (
           <div className="cycle-form__goals-section">
             <div className="cycle-form__goals-header">
               <span className="cycle-form__section-label">Exercise Goals</span>
-              <span className="cycle-form__goals-hint">Set 4-week targets (optional)</span>
+              <span className="cycle-form__goals-hint">Set 4-week targets</span>
             </div>
             {goals.map(g => (
               <div key={g.exerciseId} className="cycle-goal-input-row">
@@ -440,49 +534,40 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
                 <div className="cycle-goal-input-row__fields">
                   <div className="cycle-goal-input-row__field">
                     <label>Start (lbs)</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      className="input"
-                      placeholder="–"
-                      value={g.startWeight}
-                      onChange={e => updateGoal(g.exerciseId, 'startWeight', e.target.value)}
-                    />
+                    <input type="number" inputMode="decimal" className="input" placeholder="–" value={g.startWeight} onChange={e => updateGoal(g.exerciseId, 'startWeight', e.target.value)} />
                   </div>
                   <div className="cycle-goal-input-row__arrow">→</div>
                   <div className="cycle-goal-input-row__field">
                     <label>Target (lbs)</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      className="input"
-                      placeholder="–"
-                      value={g.targetWeight}
-                      onChange={e => updateGoal(g.exerciseId, 'targetWeight', e.target.value)}
-                    />
+                    <input type="number" inputMode="decimal" className="input" placeholder="–" value={g.targetWeight} onChange={e => updateGoal(g.exerciseId, 'targetWeight', e.target.value)} />
                   </div>
                   <div className="cycle-goal-input-row__field cycle-goal-input-row__field--reps">
                     <label>Reps</label>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      className="input"
-                      placeholder="–"
-                      value={g.targetReps}
-                      onChange={e => updateGoal(g.exerciseId, 'targetReps', e.target.value)}
-                    />
+                    <input type="number" inputMode="numeric" className="input" placeholder="–" value={g.targetReps} onChange={e => updateGoal(g.exerciseId, 'targetReps', e.target.value)} />
                   </div>
                 </div>
+                {g.startWeight && g.targetWeight && (
+                  <div className="cycle-form__progression-preview">
+                    {[0, 1, 2, 3].map(w => {
+                      const step = (Number(g.targetWeight) - Number(g.startWeight)) / 3;
+                      const val = w < 3
+                        ? Math.round((Number(g.startWeight) + step * w) * 4) / 4
+                        : Number(g.targetWeight);
+                      return (
+                        <div key={w} className="cycle-form__prog-step">
+                          <div className="cycle-form__prog-week">W{w + 1}</div>
+                          <div className="cycle-form__prog-val">{val}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {/* Add individual goal */}
-        <button
-          className="btn btn--ghost btn--sm cycle-form__add-goal-btn"
-          onClick={() => setShowGoalForm(true)}
-        >
+        <button className="btn btn--ghost btn--sm cycle-form__add-goal-btn" onClick={() => setShowGoalForm(true)}>
           + Add individual goal
         </button>
 
@@ -492,7 +577,6 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
         </button>
         <button className="btn btn--ghost btn--full" onClick={onClose}>Cancel</button>
 
-        {/* Template picker overlay */}
         {showTemplatePicker && (
           <div className="overlay" style={{ zIndex: 200 }} onClick={() => setShowTemplatePicker(false)}>
             <div className="sheet" onClick={e => e.stopPropagation()}>
@@ -505,11 +589,7 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
               ) : (
                 <div className="exercise-list">
                   {templates.map(t => (
-                    <button
-                      key={t.id}
-                      className="exercise-list__item"
-                      onClick={() => { setSelectedTemplateId(t.id); setShowTemplatePicker(false); }}
-                    >
+                    <button key={t.id} className="exercise-list__item" onClick={() => { setSelectedTemplateId(t.id); setShowTemplatePicker(false); }}>
                       <span>{t.name}</span>
                       <span className="badge badge--category">{t.exercises?.length || 0} exercises</span>
                     </button>
@@ -520,7 +600,6 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
           </div>
         )}
 
-        {/* Individual goal form */}
         {showGoalForm && (
           <IndividualGoalForm
             exercises={allExercises}
@@ -533,7 +612,7 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
   );
 }
 
-// ─── Individual goal form (for goals not in a template) ─────────────────────────
+// ─── Individual goal form ────────────────────────────────────────────────────────
 function IndividualGoalForm({ exercises, onAdd, onClose }) {
   const [search, setSearch] = useState('');
   const [selectedEx, setSelectedEx] = useState(null);
@@ -547,13 +626,7 @@ function IndividualGoalForm({ exercises, onAdd, onClose }) {
 
   const add = () => {
     if (!selectedEx) return;
-    onAdd({
-      exerciseId: selectedEx.id,
-      exerciseName: selectedEx.name,
-      startWeight: startWeight,
-      targetWeight: targetWeight,
-      targetReps: targetReps,
-    });
+    onAdd({ exerciseId: selectedEx.id, exerciseName: selectedEx.name, startWeight, targetWeight, targetReps });
   };
 
   return (
@@ -561,17 +634,9 @@ function IndividualGoalForm({ exercises, onAdd, onClose }) {
       <div className="sheet" onClick={e => e.stopPropagation()}>
         <div className="sheet__handle" />
         <div className="sheet__title">Add Individual Goal</div>
-
         {!selectedEx ? (
           <>
-            <input
-              className="input"
-              placeholder="Search exercise..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              autoFocus
-              style={{ marginBottom: 8 }}
-            />
+            <input className="input" placeholder="Search exercise..." value={search} onChange={e => setSearch(e.target.value)} autoFocus style={{ marginBottom: 8 }} />
             <div className="exercise-list" style={{ maxHeight: 260 }}>
               {filtered.map(ex => (
                 <button key={ex.id} className="exercise-list__item" onClick={() => setSelectedEx(ex)}>
@@ -587,7 +652,6 @@ function IndividualGoalForm({ exercises, onAdd, onClose }) {
               <span style={{ fontWeight: 700, fontSize: 16, flex: 1 }}>{selectedEx.name}</span>
               <button className="btn btn--ghost btn--sm" onClick={() => setSelectedEx(null)}>Change</button>
             </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 10, marginBottom: 12 }}>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Start (lbs)</label>
@@ -602,7 +666,6 @@ function IndividualGoalForm({ exercises, onAdd, onClose }) {
                 <input className="input" type="number" placeholder="e.g. 5" value={targetReps} onChange={e => setTargetReps(e.target.value)} />
               </div>
             </div>
-
             <button className="btn btn--primary btn--full" onClick={add} style={{ marginBottom: 10 }}>Add Goal</button>
             <button className="btn btn--ghost btn--full" onClick={onClose}>Cancel</button>
           </>
