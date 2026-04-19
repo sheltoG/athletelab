@@ -236,6 +236,26 @@ db.version(10).stores({
   if (situp) await tx.table('exercises').update(situp.id, { tags: [...new Set([...(situp.tags || []), 'BodyWeight'])] });
 });
 
+db.version(11).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const newExercises = [
+    { name: 'Copenhagen Plank', category: 'Core', isCustom: false, isUnilateral: true, tags: ['Core'], videoUrl: 'https://youtube.com/shorts/IXjQrC45D7s?si=9SaDO7vA6vD3hHc0' },
+    { name: 'Weighted Windmill', category: 'Lower Body', isCustom: false, isUnilateral: true, tags: ['Hip', 'Dumbbell'], videoUrl: 'https://youtube.com/shorts/BlM7-cOF9GU?si=lFRKb0uZuKMZdv5g' },
+    { name: 'Med Ball Fake Toss', category: 'Plyometric', isCustom: false, tags: ['Power', 'Plyo'], videoUrl: 'https://youtube.com/shorts/3GtAip350VU?si=_k-p8auu4m-Sfphr' },
+  ];
+  for (const ex of newExercises) {
+    const existing = await tx.table('exercises').where('name').equals(ex.name).first();
+    if (!existing) await tx.table('exercises').add(ex);
+  }
+});
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },
@@ -288,6 +308,9 @@ const DEFAULT_EXERCISES = [
   { name: 'Single Leg Glute Bridge', category: 'Lower Body', isCustom: false, isUnilateral: true },
   // Core additions
   { name: 'High Hip Plank Circles', category: 'Core', isCustom: false, tags: ['Mobility', 'Core'] },
+  { name: 'Copenhagen Plank', category: 'Core', isCustom: false, isUnilateral: true, tags: ['Core'], videoUrl: 'https://youtube.com/shorts/IXjQrC45D7s?si=9SaDO7vA6vD3hHc0' },
+  { name: 'Weighted Windmill', category: 'Lower Body', isCustom: false, isUnilateral: true, tags: ['Hip', 'Dumbbell'], videoUrl: 'https://youtube.com/shorts/BlM7-cOF9GU?si=lFRKb0uZuKMZdv5g' },
+  { name: 'Med Ball Fake Toss', category: 'Plyometric', isCustom: false, tags: ['Power', 'Plyo'], videoUrl: 'https://youtube.com/shorts/3GtAip350VU?si=_k-p8auu4m-Sfphr' },
   // Cardio / Conditioning
   { name: 'Sprint', category: 'Cardio', isCustom: false },
   { name: 'Sled Push', category: 'Cardio', isCustom: false },
