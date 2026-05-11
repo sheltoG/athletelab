@@ -256,6 +256,26 @@ db.version(11).stores({
   }
 });
 
+db.version(12).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const newExercises = [
+    { name: 'Single Leg Pogos', category: 'Plyometric', isCustom: false, isUnilateral: true, isIsometric: true, defaultSecs: 30, tags: ['Plyo'], videoUrl: 'https://youtube.com/shorts/1yFJH0qIoGA?si=nsR0UvHoXAyHfjzk' },
+    { name: 'Explosive Band Turns', category: 'Core', isCustom: false, tags: ['Core', 'Power'] },
+    { name: 'Single Hip Thrust w Dumbbell', category: 'Lower Body', isCustom: false, isUnilateral: true, tags: ['Hip', 'Dumbbell'] },
+  ];
+  for (const ex of newExercises) {
+    const existing = await tx.table('exercises').where('name').equals(ex.name).first();
+    if (!existing) await tx.table('exercises').add(ex);
+  }
+});
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },
@@ -311,6 +331,9 @@ const DEFAULT_EXERCISES = [
   { name: 'Copenhagen Plank', category: 'Core', isCustom: false, isUnilateral: true, tags: ['Core'], videoUrl: 'https://youtube.com/shorts/IXjQrC45D7s?si=9SaDO7vA6vD3hHc0' },
   { name: 'Weighted Windmill', category: 'Lower Body', isCustom: false, isUnilateral: true, tags: ['Hip', 'Dumbbell'], videoUrl: 'https://youtube.com/shorts/BlM7-cOF9GU?si=lFRKb0uZuKMZdv5g' },
   { name: 'Med Ball Fake Toss', category: 'Plyometric', isCustom: false, tags: ['Power', 'Plyo'], videoUrl: 'https://youtube.com/shorts/3GtAip350VU?si=_k-p8auu4m-Sfphr' },
+  { name: 'Single Leg Pogos', category: 'Plyometric', isCustom: false, isUnilateral: true, isIsometric: true, defaultSecs: 30, tags: ['Plyo'], videoUrl: 'https://youtube.com/shorts/1yFJH0qIoGA?si=nsR0UvHoXAyHfjzk' },
+  { name: 'Explosive Band Turns', category: 'Core', isCustom: false, tags: ['Core', 'Power'] },
+  { name: 'Single Hip Thrust w Dumbbell', category: 'Lower Body', isCustom: false, isUnilateral: true, tags: ['Hip', 'Dumbbell'] },
   // Cardio / Conditioning
   { name: 'Sprint', category: 'Cardio', isCustom: false },
   { name: 'Sled Push', category: 'Cardio', isCustom: false },

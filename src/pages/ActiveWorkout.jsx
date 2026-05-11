@@ -294,13 +294,13 @@ export default function ActiveWorkout() {
     setExercises(prev => prev.map(e => {
       if (e.id !== entryId) return e;
       const setIndex = e.sets.findIndex(s => s.id === setId);
-      // Propagate reps from first set to all subsequent incomplete non-extra sets
-      if (field === 'reps' && setIndex === 0) {
+      // Propagate reps or weight from first set to all subsequent incomplete non-extra sets
+      if ((field === 'reps' || field === 'weight') && setIndex === 0) {
         return {
           ...e,
           sets: e.sets.map((s, i) => {
             if (s.id === setId) return { ...s, [field]: value };
-            if (i > 0 && !s.completed && !s.isExtraLeft) return { ...s, reps: value };
+            if (i > 0 && !s.completed && !s.isExtraLeft) return { ...s, [field]: value };
             return s;
           }),
         };
