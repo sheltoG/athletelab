@@ -54,6 +54,8 @@ function makeExerciseEntry(exercise) {
   const count = exercise.defaultSets || 1;
   const setDefaults = exercise.isIsometric && exercise.defaultSecs
     ? { holdTime: String(exercise.defaultSecs) }
+    : exercise.defaultReps
+    ? { reps: String(exercise.defaultReps) }
     : {};
   const sets = Array.from({ length: count }, () => makeSet(setDefaults));
   if (exercise.defaultExtraLeftSet) sets.push(makeSet({ isExtraLeft: true, ...setDefaults }));
