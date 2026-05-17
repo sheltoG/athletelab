@@ -33,6 +33,7 @@ export default function TemplateEditor() {
   // Drag state
   const [dragSrcIdx, setDragSrcIdx] = useState(null);
   const [dragDestIdx, setDragDestIdx] = useState(null);
+  const dragWrapperRefs = useRef([]);
 
   useEffect(() => {
     if (!isNew) {
@@ -49,28 +50,47 @@ export default function TemplateEditor() {
     }
   }, [id, isNew]);
 
-  // Window pointer-up handler for drag-to-reorder
+  // Pointer move + up handlers for drag-to-reorder (mobile-compatible)
   useEffect(() => {
     if (dragSrcIdx === null) return;
-    const handleUp = () => {
-      if (dragDestIdx !== null && dragDestIdx !== dragSrcIdx) {
-        setExercises(prev => {
-          const arr = [...prev];
-          const [item] = arr.splice(dragSrcIdx, 1);
-          arr.splice(dragDestIdx, 0, item);
-          return arr;
-        });
-      }
-      setDragSrcIdx(null);
-      setDragDestIdx(null);
+
+    const handleMove = (e) => {
+      const clientX = e.clientX ?? e.touches?.[0]?.clientX;
+      const clientY = e.clientY ?? e.touches?.[0]?.clientY;
+      if (clientX == null) return;
+      const el = document.elementFromPoint(clientX, clientY);
+      const wrapper = el?.closest('.drag-wrapper');
+      if (!wrapper) return;
+      const idx = dragWrapperRefs.current.indexOf(wrapper);
+      if (idx !== -1) setDragDestIdx(idx);
     };
+
+    const handleUp = () => {
+      setDragSrcIdx(prev => {
+        setDragDestIdx(dest => {
+          if (dest !== null && dest !== prev) {
+            setExercises(exs => {
+              const arr = [...exs];
+              const [item] = arr.splice(prev, 1);
+              arr.splice(dest, 0, item);
+              return arr;
+            });
+          }
+          return null;
+        });
+        return null;
+      });
+    };
+
+    window.addEventListener('pointermove', handleMove);
     window.addEventListener('pointerup', handleUp);
     window.addEventListener('pointercancel', handleUp);
     return () => {
+      window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
     };
-  }, [dragSrcIdx, dragDestIdx]);
+  }, [dragSrcIdx]);
 
   const addExercise = (ex) => {
     let supersetGroup = null;
@@ -214,8 +234,8 @@ export default function TemplateEditor() {
           return (
             <div
               key={ex.exerciseId}
+              ref={el => { dragWrapperRefs.current[idx] = el; }}
               className={`drag-wrapper${dragSrcIdx === idx ? ' drag-wrapper--dragging' : ''}${dragDestIdx === idx && dragSrcIdx !== null && dragSrcIdx !== idx ? ' drag-wrapper--over' : ''}`}
-              onPointerEnter={() => { if (dragSrcIdx !== null) setDragDestIdx(idx); }}
             >
               {isContinuingPair && <div className="superset-connector" />}
               <TemplateExerciseCard
