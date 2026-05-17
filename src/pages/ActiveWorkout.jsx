@@ -51,9 +51,12 @@ function makeSet(extra = {}) {
 }
 
 function makeExerciseEntry(exercise) {
-  const sets = exercise.defaultExtraLeftSet
-    ? [makeSet(), makeSet({ isExtraLeft: true })]
-    : [makeSet()];
+  const count = exercise.defaultSets || 1;
+  const setDefaults = exercise.isIsometric && exercise.defaultSecs
+    ? { holdTime: String(exercise.defaultSecs) }
+    : {};
+  const sets = Array.from({ length: count }, () => makeSet(setDefaults));
+  if (exercise.defaultExtraLeftSet) sets.push(makeSet({ isExtraLeft: true, ...setDefaults }));
   return {
     id: crypto.randomUUID(),
     exerciseId: exercise.id,

@@ -276,6 +276,25 @@ db.version(12).stores({
   }
 });
 
+db.version(13).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const newExercises = [
+    { name: 'Kneeling Lat Stretch', category: 'Upper Body', isCustom: false, isIsometric: true, defaultSets: 10, defaultSecs: 5, tags: ['Stretch', 'Mobility'], videoUrl: 'https://youtube.com/shorts/mbSwVrZN6w8?si=RN6QDhx8SVkoWALA' },
+    { name: 'Eccentric Curl Up', category: 'Core', isCustom: false, isIsometric: true, defaultSets: 5, defaultSecs: 5, tags: ['Core'], videoUrl: 'https://youtu.be/_XcDLWaF7n8?si=lX61g9pLYr_D1TMO' },
+  ];
+  for (const ex of newExercises) {
+    const existing = await tx.table('exercises').where('name').equals(ex.name).first();
+    if (!existing) await tx.table('exercises').add(ex);
+  }
+});
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },
@@ -355,6 +374,8 @@ const DEFAULT_EXERCISES = [
   { name: 'Quadruped Reach Through', category: 'Core', isCustom: false, tags: ['Mobility', 'Core'], videoUrl: 'https://youtube.com/shorts/U9zDpY0HpbI?si=w9vEX7Pkemgxbq46' },
   { name: 'Banded Backswing Lead Arm Press', category: 'Upper Body', isCustom: false, isIsometric: true, videoUrl: 'https://youtu.be/hB81JdIddRs?si=kg4y58GsljLK9Dje' },
   { name: 'Supine Hip-Torso Separation', category: 'Core', isCustom: false, tags: ['Core'], videoUrl: 'https://youtu.be/CVtW4oZI9rE?si=A6K0bfdO1lqbvuQ_' },
+  { name: 'Kneeling Lat Stretch', category: 'Upper Body', isCustom: false, isIsometric: true, defaultSets: 10, defaultSecs: 5, tags: ['Stretch', 'Mobility'], videoUrl: 'https://youtube.com/shorts/mbSwVrZN6w8?si=RN6QDhx8SVkoWALA' },
+  { name: 'Eccentric Curl Up', category: 'Core', isCustom: false, isIsometric: true, defaultSets: 5, defaultSecs: 5, tags: ['Core'], videoUrl: 'https://youtu.be/_XcDLWaF7n8?si=lX61g9pLYr_D1TMO' },
 ];
 
 const DEFAULT_SETTINGS = [
