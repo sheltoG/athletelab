@@ -383,6 +383,38 @@ db.version(15).stores({
   });
 });
 
+db.version(16).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const template = await tx.table('workoutTemplates').filter(t => t.name === 'Upper Day').first();
+  if (!template) return;
+  const phaseMap = {
+    'Band Pull-Aparts': 'Activation',
+    'Prone Y-T-W Raises': 'Activation',
+    'Dead Hangs / Scapular Pull-Ups': 'Activation',
+    'Arm Circles + Thoracic Rotations': 'Activation',
+    'Accelerated Torso Rotations (Band)': 'Activation',
+    'Rotational Med Ball Slams': 'Power',
+    'Explosive Band Chest Press': 'Power',
+    'Plyometric Push-Ups': 'Power',
+    'Bench Press': 'Strength',
+    'Pull-Up': 'Strength',
+    'Single Arm Supported Dumbbell Row': 'Strength',
+    'Bicep Curl': 'Accessory',
+  };
+  const updatedExercises = (template.exercises || []).map(ex => ({
+    ...ex,
+    phase: phaseMap[ex.exerciseName] || ex.phase || null,
+  }));
+  await tx.table('workoutTemplates').update(template.id, { exercises: updatedExercises });
+});
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },

@@ -164,6 +164,7 @@ export default function ActiveWorkout() {
             extraLeftSet: ex.defaultExtraLeftSet || false,
             tags: fullEx.tags || ex.tags || [],
             supersetGroup: ex.supersetGroup || null,
+            phase: ex.phase || null,
             skipped: false,
             sets: baseSets,
           };
@@ -415,7 +416,22 @@ export default function ActiveWorkout() {
   );
 
   const renderExercises = (exList, fmt) => {
-    if (fmt !== 'superset') return exList.map(renderCard);
+    if (fmt !== 'superset') {
+      const result = [];
+      let lastPhase = null;
+      for (const entry of exList) {
+        if (entry.phase && entry.phase !== lastPhase) {
+          result.push(
+            <div key={`phase-${entry.phase}`} className="phase-divider">
+              <span className="phase-divider__label">{entry.phase}</span>
+            </div>
+          );
+          lastPhase = entry.phase;
+        }
+        result.push(renderCard(entry));
+      }
+      return result;
+    }
 
     // Build groups of consecutive exercises with same pair-number prefix
     const groups = [];
