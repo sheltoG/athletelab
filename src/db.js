@@ -312,6 +312,77 @@ db.version(14).stores({
   });
 });
 
+db.version(15).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const newExercises = [
+    { name: 'Band Pull-Aparts', category: 'Upper Body', isCustom: false, defaultSets: 2, defaultReps: 15, tags: ['Mobility'], videoUrl: 'https://www.youtube.com/watch?v=smSSXITNpCI' },
+    { name: 'Prone Y-T-W Raises', category: 'Upper Body', isCustom: false, defaultSets: 2, defaultReps: 8, tags: ['Mobility'], videoUrl: 'https://www.youtube.com/watch?v=igh0z6BI48M' },
+    { name: 'Dead Hangs / Scapular Pull-Ups', category: 'Upper Body', isCustom: false, isIsometric: true, defaultSets: 2, defaultSecs: 15, tags: ['Activation'], videoUrl: 'https://www.youtube.com/watch?v=7iYzsEiMFQI' },
+    { name: 'Arm Circles + Thoracic Rotations', category: 'Upper Body', isCustom: false, isIsometric: true, defaultSets: 1, defaultSecs: 30, tags: ['Mobility'], videoUrl: 'https://www.youtube.com/watch?v=qcoRwILEOcc' },
+    { name: 'Accelerated Torso Rotations (Band)', category: 'Core', isCustom: false, isUnilateral: true, defaultSets: 1, defaultReps: 10, tags: ['Mobility', 'Power'], videoUrl: 'https://www.youtube.com/watch?v=Z8peYVK7pGQ' },
+    { name: 'Rotational Med Ball Slams', category: 'Plyometric', isCustom: false, isUnilateral: true, defaultSets: 3, defaultReps: 5, tags: ['Power', 'Plyo'], videoUrl: 'https://www.youtube.com/watch?v=k67D95cDohc' },
+    { name: 'Explosive Band Chest Press', category: 'Upper Body', isCustom: false, defaultSets: 3, defaultReps: 5, tags: ['Power'], videoUrl: 'https://www.youtube.com/watch?v=5NZvqck36Mg' },
+    { name: 'Plyometric Push-Ups', category: 'Plyometric', isCustom: false, defaultSets: 3, defaultReps: 5, tags: ['Power', 'Plyo'], videoUrl: 'https://www.youtube.com/watch?v=GR0ZL7f7u18' },
+  ];
+  for (const ex of newExercises) {
+    const existing = await tx.table('exercises').where('name').equals(ex.name).first();
+    if (!existing) await tx.table('exercises').add(ex);
+  }
+
+  const existingTemplate = await tx.table('workoutTemplates').filter(t => t.name === 'Upper Day').first();
+  if (existingTemplate) return;
+
+  // PDF: Activation → Power → Strength → Accessory
+  const templateSpec = [
+    { name: 'Band Pull-Aparts',               sets: 2, reps: 15 },
+    { name: 'Prone Y-T-W Raises',             sets: 2, reps: 8  },
+    { name: 'Dead Hangs / Scapular Pull-Ups', sets: 2, reps: 15 }, // secs (isometric)
+    { name: 'Arm Circles + Thoracic Rotations', sets: 1, reps: 30 }, // secs (isometric)
+    { name: 'Accelerated Torso Rotations (Band)', sets: 1, reps: 10 },
+    { name: 'Rotational Med Ball Slams',      sets: 3, reps: 5  },
+    { name: 'Explosive Band Chest Press',     sets: 3, reps: 5  },
+    { name: 'Plyometric Push-Ups',            sets: 3, reps: 5  },
+    { name: 'Bench Press',                    sets: 3, reps: 6  },
+    { name: 'Pull-Up',                        sets: 3, reps: 5  },
+    { name: 'Single Arm Supported Dumbbell Row', sets: 3, reps: 8 },
+    { name: 'Bicep Curl',                     sets: 3, reps: 8  },
+  ];
+
+  const templateExercises = [];
+  for (const spec of templateSpec) {
+    const ex = await tx.table('exercises').where('name').equals(spec.name).first();
+    if (!ex) continue;
+    templateExercises.push({
+      exerciseId: ex.id,
+      exerciseName: ex.name,
+      category: ex.category,
+      isIsometric: ex.isIsometric || false,
+      isUnilateral: ex.isUnilateral || false,
+      hasSpeedStrengthMode: ex.hasSpeedStrengthMode || false,
+      defaultSets: spec.sets,
+      defaultReps: spec.reps,
+      defaultExtraLeftSet: false,
+      videoUrl: ex.videoUrl || '',
+      supersetGroup: null,
+    });
+  }
+
+  await tx.table('workoutTemplates').add({
+    name: 'Upper Day',
+    notes: 'Activation → Power → Strength → Accessory. Activation: 8–10 min, don\'t rush. Power series: rest 2–3 min, max intent every rep. Strength: superset bench press + pull-ups with ~90 sec rest.',
+    workoutType: 'workout',
+    format: 'standard',
+    exercises: templateExercises,
+  });
+});
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },
@@ -394,6 +465,15 @@ const DEFAULT_EXERCISES = [
   { name: 'Kneeling Lat Stretch', category: 'Upper Body', isCustom: false, isIsometric: true, defaultSets: 10, defaultSecs: 5, tags: ['Stretch', 'Mobility'], videoUrl: 'https://youtube.com/shorts/mbSwVrZN6w8?si=RN6QDhx8SVkoWALA' },
   { name: 'Eccentric Curl Up', category: 'Core', isCustom: false, isIsometric: true, defaultSets: 5, defaultSecs: 5, tags: ['Core'], videoUrl: 'https://youtu.be/_XcDLWaF7n8?si=lX61g9pLYr_D1TMO' },
   { name: 'PVC Rotations', category: 'Upper Body', isCustom: false, defaultSets: 3, defaultReps: 20, tags: ['Mobility'], videoUrl: 'https://youtu.be/ZNVFeEg83uo?si=BAYzLvzUZlXoW-gR' },
+  // Upper Day exercises (v15)
+  { name: 'Band Pull-Aparts', category: 'Upper Body', isCustom: false, defaultSets: 2, defaultReps: 15, tags: ['Mobility'], videoUrl: 'https://www.youtube.com/watch?v=smSSXITNpCI' },
+  { name: 'Prone Y-T-W Raises', category: 'Upper Body', isCustom: false, defaultSets: 2, defaultReps: 8, tags: ['Mobility'], videoUrl: 'https://www.youtube.com/watch?v=igh0z6BI48M' },
+  { name: 'Dead Hangs / Scapular Pull-Ups', category: 'Upper Body', isCustom: false, isIsometric: true, defaultSets: 2, defaultSecs: 15, tags: ['Activation'], videoUrl: 'https://www.youtube.com/watch?v=7iYzsEiMFQI' },
+  { name: 'Arm Circles + Thoracic Rotations', category: 'Upper Body', isCustom: false, isIsometric: true, defaultSets: 1, defaultSecs: 30, tags: ['Mobility'], videoUrl: 'https://www.youtube.com/watch?v=qcoRwILEOcc' },
+  { name: 'Accelerated Torso Rotations (Band)', category: 'Core', isCustom: false, isUnilateral: true, defaultSets: 1, defaultReps: 10, tags: ['Mobility', 'Power'], videoUrl: 'https://www.youtube.com/watch?v=Z8peYVK7pGQ' },
+  { name: 'Rotational Med Ball Slams', category: 'Plyometric', isCustom: false, isUnilateral: true, defaultSets: 3, defaultReps: 5, tags: ['Power', 'Plyo'], videoUrl: 'https://www.youtube.com/watch?v=k67D95cDohc' },
+  { name: 'Explosive Band Chest Press', category: 'Upper Body', isCustom: false, defaultSets: 3, defaultReps: 5, tags: ['Power'], videoUrl: 'https://www.youtube.com/watch?v=5NZvqck36Mg' },
+  { name: 'Plyometric Push-Ups', category: 'Plyometric', isCustom: false, defaultSets: 3, defaultReps: 5, tags: ['Power', 'Plyo'], videoUrl: 'https://www.youtube.com/watch?v=GR0ZL7f7u18' },
 ];
 
 const DEFAULT_SETTINGS = [
