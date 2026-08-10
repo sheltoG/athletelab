@@ -415,6 +415,65 @@ db.version(16).stores({
   await tx.table('workoutTemplates').update(template.id, { exercises: updatedExercises });
 });
 
+db.version(17).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  let pushUp = await tx.table('exercises').where('name').equals('Push-Up').first();
+  if (!pushUp) {
+    const id = await tx.table('exercises').add({
+      name: 'Push-Up', category: 'Upper Body', isCustom: false,
+      defaultSets: 3, defaultReps: 12, tags: ['Bodyweight'],
+    });
+    pushUp = await tx.table('exercises').get(id);
+  }
+
+  const template = await tx.table('workoutTemplates').filter(t => t.name === 'Upper Day').first();
+  if (!template) return;
+  const updatedExercises = (template.exercises || []).map(ex => {
+    if (ex.exerciseName !== 'Plyometric Push-Ups') return ex;
+    return {
+      exerciseId: pushUp.id,
+      exerciseName: pushUp.name,
+      category: pushUp.category,
+      isIsometric: pushUp.isIsometric || false,
+      isUnilateral: pushUp.isUnilateral || false,
+      hasSpeedStrengthMode: pushUp.hasSpeedStrengthMode || false,
+      defaultSets: 3,
+      defaultReps: 12,
+      defaultExtraLeftSet: false,
+      videoUrl: pushUp.videoUrl || '',
+      supersetGroup: ex.supersetGroup || null,
+      phase: 'Strength',
+    };
+  });
+  await tx.table('workoutTemplates').update(template.id, { exercises: updatedExercises });
+});
+
+db.version(18).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const template = await tx.table('workoutTemplates').filter(t => t.name === 'Upper Day').first();
+  if (!template) return;
+  const removedNames = ['Bench Press', 'Single Arm Supported Dumbbell Row'];
+  const updatedExercises = (template.exercises || []).filter(ex => !removedNames.includes(ex.exerciseName));
+  await tx.table('workoutTemplates').update(template.id, {
+    exercises: updatedExercises,
+    notes: 'Activation → Power → Strength → Accessory. Activation: 8–10 min, don\'t rush. Power series: rest 2–3 min, max intent every rep. Strength: pull-ups, ~90 sec rest.',
+  });
+});
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },
