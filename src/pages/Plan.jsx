@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../db';
+import { cycleDuration, weeklyTargets } from '../lib/trainingCycles';
 import './Plan.css';
 
 function fmtShort(ms) {
@@ -80,7 +81,7 @@ export default function Plan() {
                 <div className="empty-state">
                   <div className="empty-state__icon">🔄</div>
                   <div className="empty-state__title">No Training Cycles</div>
-                  <div className="empty-state__subtitle">Create a 4-week training block tied to a template.</div>
+                  <div className="empty-state__subtitle">Create a 2- or 4-week training block tied to a template.</div>
                 </div>
               ) : cycles.map(c => (
                 <CycleCard
@@ -155,10 +156,11 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
   const [sessions, setSessions] = useState([]);
   const [selectedWeek, setSelectedWeek] = useState(null);
 
+  const durationWeeks = cycleDuration(cycle);
   const startMs = cycle.startDate;
-  const endMs = startMs + 28 * 24 * 3600 * 1000; // 4 weeks
+  const endMs = startMs + durationWeeks * 7 * 24 * 3600 * 1000;
   const now = Date.now();
-  const currentWeek = Math.min(4, Math.max(1, Math.ceil((now - startMs) / (7 * 24 * 3600 * 1000))));
+  const currentWeek = Math.min(durationWeeks, Math.max(1, Math.floor((now - startMs) / (7 * 24 * 3600 * 1000)) + 1));
   const isActive = now >= startMs && now < endMs;
   const isCompleted = now >= endMs;
   const isFuture = now < startMs;
@@ -168,15 +170,15 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
 
   // Default selected week
   useEffect(() => {
-    setSelectedWeek(isCompleted ? 4 : isFuture ? 1 : currentWeek);
-  }, [cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    setSelectedWeek(isCompleted ? durationWeeks : isFuture ? 1 : currentWeek);
+  }, [cycle.id, startMs, endMs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     db.workoutSessions
-      .where('date').between(startMs, endMs + 24 * 3600 * 1000)
+      .where('date').between(startMs, endMs, true, false)
       .toArray()
       .then(setSessions);
-  }, [cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cycle.id, startMs, endMs]);
 
   const weekMs = (w) => ({
     start: startMs + (w - 1) * 7 * 24 * 3600 * 1000,
@@ -206,7 +208,7 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
 
   const weekSessions = selectedWeek ? getWeekSessions(selectedWeek) : [];
   const goals = cycle.goals || [];
-  const goalsWithProgression = goals.filter(g => g.weeklyProgression?.length === 4);
+  const goalsWithProgression = goals.filter(g => g.weeklyProgression?.length === durationWeeks);
   const allGoals = goals; // show all goals, even those without targets
 
   // Overall progress: use best across entire cycle vs end-of-cycle target
@@ -225,7 +227,7 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="cycle-card__name">{cycle.name}</div>
           <div className="cycle-card__dates">
-            {fmtShort(startMs)} – {fmtShort(endMs)}
+            {fmtShort(startMs)} – {fmtShort(endMs - 24 * 3600 * 1000)} · {durationWeeks} weeks
             {isActive && <span className="cycle-status-dot cycle-status-dot--active" />}
             {isCompleted && <span className="cycle-status-label"> · Completed</span>}
             {isFuture && <span className="cycle-status-label"> · Upcoming</span>}
@@ -248,7 +250,7 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
 
       {/* ── Week selector tabs ── */}
       <div className="cycle-week-tabs">
-        {[1, 2, 3, 4].map(w => {
+        {Array.from({ length: durationWeeks }, (_, i) => i + 1).map(w => {
           const { start: wStart, end: wEnd } = weekMs(w);
           const wPast = wEnd <= now;
           const wCurrent = w === currentWeek && isActive;
@@ -382,6 +384,7 @@ function CycleCard({ cycle, templates, onEdit, onDelete }) {
 // ─── Cycle form ──────────────────────────────────────────────────────────────────
 function CycleForm({ cycle, templates, onSave, onClose }) {
   const [name, setName] = useState(cycle?.name ?? '');
+  const [durationWeeks, setDurationWeeks] = useState(cycleDuration(cycle));
   const [startDate, setStartDate] = useState(cycle?.startDate
     ? new Date(cycle.startDate).toISOString().split('T')[0]
     : new Date().toISOString().split('T')[0]);
@@ -444,19 +447,7 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
       const startW = Number(g.startWeight) || 0;
       const targetW = Number(g.targetWeight) || 0;
       const targetR = Number(g.targetReps) || 0;
-      let weeklyProgression = null;
-      if (targetW > 0) {
-        if (startW > 0 && startW < targetW) {
-          // Linear ramp from start → target over 4 weeks
-          const step = (targetW - startW) / 3;
-          weeklyProgression = [0, 1, 2, 3].map(w =>
-            w < 3 ? Math.round((startW + step * w) * 4) / 4 : targetW
-          );
-        } else {
-          // Target only — hold the same target every week
-          weeklyProgression = [targetW, targetW, targetW, targetW];
-        }
-      }
+      const weeklyProgression = weeklyTargets(startW, targetW, durationWeeks);
       return {
         exerciseId: g.exerciseId,
         exerciseName: g.exerciseName,
@@ -470,6 +461,7 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
     const data = {
       name: name.trim(),
       startDate: new Date(startDate).getTime(),
+      durationWeeks,
       isActive: true,
       templateId: selectedTemplateId ?? null,
       goals: finalGoals,
@@ -500,6 +492,12 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
           style={{ marginBottom: 12 }}
         />
 
+        <label className="cycle-form__label" htmlFor="cycle-duration">Cycle Length</label>
+        <select id="cycle-duration" className="input" value={durationWeeks} onChange={e => setDurationWeeks(Number(e.target.value))} style={{ marginBottom: 16 }}>
+          <option value={2}>2 weeks</option>
+          <option value={4}>4 weeks</option>
+        </select>
+
         <label className="cycle-form__label">Start Date</label>
         <input
           type="date"
@@ -526,7 +524,7 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
           <div className="cycle-form__goals-section">
             <div className="cycle-form__goals-header">
               <span className="cycle-form__section-label">Exercise Goals</span>
-              <span className="cycle-form__goals-hint">Set 4-week targets</span>
+              <span className="cycle-form__goals-hint">Set {durationWeeks}-week targets</span>
             </div>
             {goals.map(g => (
               <div key={g.exerciseId} className="cycle-goal-input-row">
@@ -555,11 +553,8 @@ function CycleForm({ cycle, templates, onSave, onClose }) {
                 </div>
                 {g.startWeight && g.targetWeight && (
                   <div className="cycle-form__progression-preview">
-                    {[0, 1, 2, 3].map(w => {
-                      const step = (Number(g.targetWeight) - Number(g.startWeight)) / 3;
-                      const val = w < 3
-                        ? Math.round((Number(g.startWeight) + step * w) * 4) / 4
-                        : Number(g.targetWeight);
+                    {Array.from({ length: durationWeeks }, (_, i) => i).map(w => {
+                      const val = weeklyTargets(g.startWeight, g.targetWeight, durationWeeks)?.[w];
                       return (
                         <div key={w} className="cycle-form__prog-step">
                           <div className="cycle-form__prog-week">W{w + 1}</div>

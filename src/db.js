@@ -474,6 +474,82 @@ db.version(18).stores({
   });
 });
 
+// Add the return-to-training plan without changing existing templates or sessions.
+db.version(19).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  await addFullBodyStrengthPlan(tx);
+});
+
+// Update copies already created in the local preview while retaining their other edits.
+db.version(20).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  let situp = await tx.table('exercises').where('name').equals('Ab Mat Situps').first();
+  if (!situp) {
+    const data = { name: 'Ab Mat Situps', category: 'Core', isCustom: false, tags: ['Core', 'BodyWeight'] };
+    situp = { ...data, id: await tx.table('exercises').add(data) };
+  }
+  await tx.table('workoutTemplates').filter(template => template.sourceKey === 'full-body-strength-plan').modify(template => {
+    template.exercises = (template.exercises || []).map(ex => ex.exerciseName === 'Banded Ankle Eversion' ? {
+      ...ex, exerciseId: situp.id, exerciseName: situp.name, category: situp.category,
+      isUnilateral: false, isIsometric: false, hasSpeedStrengthMode: false,
+      defaultExtraLeftSet: false, videoUrl: situp.videoUrl || '',
+    } : ex);
+    template.notes = (template.notes || '').replaceAll('Banded Ankle Eversion', 'Ab Mat Situps');
+  });
+});
+
+async function addFullBodyStrengthPlan(database) {
+  const specs = [
+    { name: 'Kettlebell Swing', category: 'Lower Body', phase: 'Power · Lower', sets: 3, reps: 5 },
+    { name: 'Dumbbell Push Press', category: 'Upper Body', phase: 'Power · Upper', sets: 3, reps: 4 },
+    { name: 'Trap Bar Deadlift', category: 'Lower Body', phase: 'Main · Lower', sets: 2, reps: 7 },
+    { name: 'Dumbbell Bench Press', category: 'Upper Body', phase: 'Main · Upper', sets: 2, reps: 7 },
+    { name: 'Reverse Lunge', category: 'Lower Body', phase: 'Complement · Lower', sets: 2, reps: 8, unilateral: true },
+    { name: 'Pull-Up', category: 'Upper Body', phase: 'Complement · Upper', sets: 2, reps: 6 },
+    { name: 'Single-Leg Calf Raise', category: 'Lower Body', phase: 'Accessory', sets: 3, reps: 8, unilateral: true },
+    { name: 'Ab Mat Situps', category: 'Core', phase: 'Accessory', sets: 2, reps: 12 },
+  ];
+  const exercises = [];
+  for (const spec of specs) {
+    let ex = await database.table('exercises').where('name').equals(spec.name).first();
+    if (!ex) {
+      const data = { name: spec.name, category: spec.category, isCustom: false, isUnilateral: !!spec.unilateral };
+      const id = await database.table('exercises').add(data);
+      ex = { ...data, id };
+    }
+    exercises.push({
+      exerciseId: ex.id, exerciseName: ex.name, category: ex.category,
+      isIsometric: false, isUnilateral: !!spec.unilateral,
+      hasSpeedStrengthMode: !!ex.hasSpeedStrengthMode,
+      defaultSets: spec.sets, defaultReps: spec.reps,
+      defaultExtraLeftSet: false, videoUrl: ex.videoUrl || '',
+      supersetGroup: null, phase: spec.phase,
+    });
+  }
+  await database.table('workoutTemplates').add({
+    name: 'Full-Body Strength Plan', sourceKey: 'full-body-strength-plan', workoutType: 'workout', format: 'standard', exercises,
+    notes: `Return-to-training phase: 2 days per week, at least 48 hours between workouts.
+Rep ranges: Kettlebell Swing 3 × 5–6; Dumbbell Push Press 3 × 4–5; Trap Bar Deadlift and Dumbbell Bench Press 3 × 7–8 (start with 2 sets in weeks 1–2); Reverse Lunge 2 × 8 per leg; Pull-Up 2 × 6–10; Single-Leg Calf Raise 3 × 8–12; Ab Mat Situps 2 × 12–15.
+Weeks 1–2: 2 working sets for main lifts, 3–4 reps in reserve. Weeks 3–4: build main lifts toward 3 sets, 2–3 reps in reserve. Weeks 5–6: aim for 3 × 7–8 on main lifts, 1–2 reps in reserve. Adjust sets as you progress; progression is not automatic.
+Power: keep loads light and movements fast; stop when speed or technique drops. Rest 2–3 minutes for main lifts, 60–90 seconds for complementary and accessory lifts. Use assisted pull-ups as needed. Avoid movements that provoke shoulder or ankle pain.
+Handwritten loads (units unspecified): swing 26; push press 20 (25 crossed out); trap bar deadlift 25; dumbbell bench press 30; reverse lunge 20.`,
+  });
+}
+
 const DEFAULT_EXERCISES = [
   // Lower Body
   { name: 'Squat', category: 'Lower Body', isCustom: false },
@@ -582,6 +658,13 @@ export async function seedDatabase() {
   if (count === 0) {
     await db.exercises.bulkAdd(DEFAULT_EXERCISES);
   }
+  await db.transaction('rw', db.exercises, db.workoutTemplates, db.settings, async () => {
+    if (!await db.settings.get('fullBodyStrengthPlanAdded')) {
+      const existing = await db.workoutTemplates.where('name').equals('Full-Body Strength Plan').first();
+      if (!existing) await addFullBodyStrengthPlan(db);
+      await db.settings.put({ key: 'fullBodyStrengthPlanAdded', value: true });
+    }
+  });
   for (const s of DEFAULT_SETTINGS) {
     const existing = await db.settings.get(s.key);
     if (!existing) await db.settings.put(s);
