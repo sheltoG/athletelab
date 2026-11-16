@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { calfAccessoryUpdate, calfAccessory } from './lib/calfAccessory';
 
 export const db = new Dexie('AthleteLab');
 
@@ -510,6 +511,46 @@ db.version(20).stores({
     } : ex);
     template.notes = (template.notes || '').replaceAll('Banded Ankle Eversion', 'Ab Mat Situps');
   });
+});
+
+// Apply the reviewed calf prescription to existing copies of this template.
+db.version(21).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const templates = await tx.table('workoutTemplates')
+    .filter(t => t.name.trim().toLowerCase() === 'calf accessory').toArray();
+  if (!templates.length) return;
+  let exercise = await tx.table('exercises').where('name').equals(calfAccessory.exerciseName).first();
+  if (!exercise) {
+    const data = { name: calfAccessory.exerciseName, category: 'Lower Body', isCustom: false, isIsometric: true, isUnilateral: true };
+    exercise = { ...data, id: await tx.table('exercises').add(data) };
+  }
+  for (const template of templates) {
+    await tx.table('workoutTemplates').update(template.id, calfAccessoryUpdate(exercise.id));
+  }
+});
+
+// Refresh the calf prescription for existing preview and installed templates.
+db.version(22).stores({
+  exercises: '++id, name, category, isCustom',
+  workoutTemplates: '++id, name',
+  trainingCycles: '++id, name, startDate, isActive',
+  workoutSessions: '++id, date, templateId, workoutType',
+  personalRecords: '++id, exerciseId, repCount',
+  settings: 'key',
+  diagnosticTests: '++id, date, type',
+}).upgrade(async tx => {
+  const templates = await tx.table('workoutTemplates').filter(t => t.name.trim().toLowerCase() === 'calf accessory').toArray();
+  for (const template of templates) {
+    const exerciseId = template.exercises?.[0]?.exerciseId;
+    if (exerciseId) await tx.table('workoutTemplates').update(template.id, calfAccessoryUpdate(exerciseId));
+  }
 });
 
 async function addFullBodyStrengthPlan(database) {

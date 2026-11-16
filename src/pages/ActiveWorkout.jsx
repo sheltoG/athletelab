@@ -141,6 +141,7 @@ export default function ActiveWorkout() {
           const fullEx = exerciseMap[ex.exerciseId] || {};
           const baseSets = Array.from({ length: ex.defaultSets || 1 }, () => {
             const s = makeSet();
+            if (ex.defaultWeight != null) s.weight = String(ex.defaultWeight);
             if (ex.isIsometric) {
               s.holdTime = ex.defaultReps ? String(ex.defaultReps) : '';
             } else {
@@ -158,6 +159,9 @@ export default function ActiveWorkout() {
             category: ex.category || '',
             isIsometric: ex.isIsometric || false,
             isUnilateral: ex.isUnilateral || false,
+            side: ex.side || null,
+            intervalRepetitions: ex.intervalRepetitions || 1,
+            intervalRestSeconds: ex.intervalRestSeconds || 0,
             hasSpeedStrengthMode: ex.hasSpeedStrengthMode || false,
             speedStrengthMode: null,
             videoUrl: ex.videoUrl || '',
@@ -353,6 +357,9 @@ export default function ActiveWorkout() {
         exerciseName: e.exerciseName,
         isIsometric: e.isIsometric || false,
         isUnilateral: e.isUnilateral || false,
+        side: e.side || null,
+        intervalRepetitions: e.intervalRepetitions || 1,
+        intervalRestSeconds: e.intervalRestSeconds || 0,
         speedStrengthMode: e.speedStrengthMode || null,
         supersetGroup: e.supersetGroup || null,
         skipped: e.skipped || false,
@@ -648,7 +655,8 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
       setIsoCountdowns(prev => { const n = { ...prev }; delete n[set.id]; return n; });
       return;
     }
-    setIsoCountdowns(prev => ({ ...prev, [set.id]: holdSecs }));
+    const totalSeconds = (holdSecs + (entry.intervalRestSeconds || 0)) * (entry.intervalRepetitions || 1);
+    setIsoCountdowns(prev => ({ ...prev, [set.id]: totalSeconds }));
   };
 
   const isIso = entry.isIsometric;
@@ -737,7 +745,7 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
         <span>Set</span>
         <span>Prev</span>
         {!isMobility && <span>{isDumbbell ? 'per DB' : 'lbs'}</span>}
-        <span>{isIso ? 'Secs' : 'Reps'}</span>
+        <span>{isIso ? 'Hold (s)' : 'Reps'}</span>
         <span></span>
         <span></span>
       </div>
@@ -755,7 +763,9 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
             onToggle={() => handleIsoToggle(set)}
             onRemove={() => onRemoveSet(set.id)}
             countdown={isoCountdowns[set.id]}
-            totalHold={Number(set.holdTime)}
+            totalHold={(Number(set.holdTime) + (entry.intervalRestSeconds || 0)) * (entry.intervalRepetitions || 1)}
+            intervalRepetitions={entry.intervalRepetitions || 1}
+            intervalRestSeconds={entry.intervalRestSeconds || 0}
             isMobility={isMobility}
           />
         ) : (
@@ -776,7 +786,7 @@ function ExerciseCard({ entry, onAddSet, onRemoveSet, onUpdateSet, onToggleCompl
         <button className="btn btn--ghost btn--sm add-set-btn" onClick={onAddSet}>
           + Add Set
         </button>
-        {entry.isUnilateral && (
+        {entry.isUnilateral && entry.side !== 'left' && (
           <button
             className={`btn btn--ghost btn--sm exercise-card__extra-left ${hasExtra ? 'exercise-card__extra-left--active' : ''}`}
             onClick={onToggleExtraLeft}
@@ -833,11 +843,17 @@ function SetRow({ set, index, prev, onUpdate, onToggle, onRemove, isMobility }) 
   );
 }
 
-function IsometricSetRow({ set, index, prev, onUpdate, onToggle, onRemove, countdown, totalHold, isMobility }) {
+function IsometricSetRow({ set, index, prev, onUpdate, onToggle, onRemove, countdown, totalHold, isMobility, intervalRepetitions, intervalRestSeconds }) {
   const prevLabel = prev
     ? `${isMobility ? '' : (prev.weight ? prev.weight + ' × ' : '')}${prev.holdTime ? `${prev.holdTime}s` : '–'}`
     : '–';
   const showCountdown = countdown !== undefined;
+  const cycleSeconds = Number(set.holdTime) + intervalRestSeconds;
+  const elapsed = totalHold - (countdown || 0);
+  const cycle = cycleSeconds > 0 ? Math.min(intervalRepetitions, Math.floor(elapsed / cycleSeconds) + 1) : 1;
+  const phaseElapsed = cycleSeconds > 0 ? elapsed % cycleSeconds : 0;
+  const resting = phaseElapsed >= Number(set.holdTime);
+  const phaseRemaining = resting ? cycleSeconds - phaseElapsed : Number(set.holdTime) - phaseElapsed;
   const countdownPct = showCountdown && totalHold > 0
     ? ((totalHold - countdown) / totalHold) * 100
     : 0;
@@ -881,11 +897,14 @@ function IsometricSetRow({ set, index, prev, onUpdate, onToggle, onRemove, count
         <button className="set-row__delete" onClick={onRemove}>×</button>
       </div>
       {showCountdown && (
+        <div>
+          {intervalRepetitions > 1 && <p style={{ color: 'var(--accent)', padding: '4px 0 8px' }}>Cycle {cycle}/{intervalRepetitions} · {resting ? 'Rest' : 'Hold'} · {phaseRemaining}s</p>}
         <div className="iso-countdown-bar">
           <div
             className="iso-countdown-bar__fill"
             style={{ width: `${countdownPct}%`, transition: 'width 1s linear' }}
           />
+        </div>
         </div>
       )}
     </>

@@ -311,6 +311,13 @@ function TemplateExerciseCard({ exercise, format, onRemove, onUpdate, onDragStar
       </div>
 
       <div className="template-exercise-card__fields">
+        {exercise.defaultWeight != null && (
+          <div className="template-exercise-card__field">
+            <label>Weight (lb)</label>
+            <input type="number" min="0" className="input" value={exercise.defaultWeight}
+              onChange={e => onUpdate('defaultWeight', Number(e.target.value))} />
+          </div>
+        )}
         <div className="template-exercise-card__field">
           <label>Sets</label>
           <input
@@ -334,7 +341,12 @@ function TemplateExerciseCard({ exercise, format, onRemove, onUpdate, onDragStar
       </div>
 
       {/* Extra left set toggle for unilateral exercises */}
-      {exercise.isUnilateral && (
+      {exercise.intervalRepetitions && (
+        <p style={{ color: 'var(--text-secondary)', margin: '12px 0' }}>
+          {exercise.defaultReps}s hold / {exercise.intervalRestSeconds}s rest × {exercise.intervalRepetitions} cycles per set{exercise.side === 'left' ? ', left side only' : ', each leg'}
+        </p>
+      )}
+      {exercise.isUnilateral && exercise.side !== 'left' && (
         <button
           className={`btn btn--ghost btn--sm template-exercise-card__extra-left ${exercise.defaultExtraLeftSet ? 'template-exercise-card__extra-left--active' : ''}`}
           onClick={() => onUpdate('defaultExtraLeftSet', !exercise.defaultExtraLeftSet)}

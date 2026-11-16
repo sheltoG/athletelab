@@ -8,6 +8,7 @@ import Trends from './pages/Trends';
 import ActiveWorkout from './pages/ActiveWorkout';
 import TemplateEditor from './pages/TemplateEditor';
 import Exercises from './pages/Exercises';
+import CalfPreview from './pages/CalfPreview';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -27,6 +28,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/preview/calf-accessory" element={<CalfPreview />} />
         <Route path="/" element={<Home />} />
         <Route path="/plan" element={<Plan />} />
         <Route path="/trends" element={<Trends />} />
@@ -35,6 +37,7 @@ export default function App() {
         <Route path="/exercises" element={<Exercises />} />
       </Routes>
       <Routes>
+        <Route path="/preview/calf-accessory" element={null} />
         <Route path="/workout" element={null} />
         <Route path="/template/:id" element={null} />
         <Route path="*" element={<BottomNav />} />
